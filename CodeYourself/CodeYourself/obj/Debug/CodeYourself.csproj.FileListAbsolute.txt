@@ -1,0 +1,9 @@
+C:\Users\Kritt\source\Code-Yourself\CodeYourself\CodeYourself\bin\Debug\CodeYourself.exe.config
+C:\Users\Kritt\source\Code-Yourself\CodeYourself\CodeYourself\bin\Debug\CodeYourself.exe
+C:\Users\Kritt\source\Code-Yourself\CodeYourself\CodeYourself\bin\Debug\CodeYourself.pdb
+C:\Users\Kritt\source\Code-Yourself\CodeYourself\CodeYourself\obj\Debug\CodeYourself.csproj.AssemblyReference.cache
+C:\Users\Kritt\source\Code-Yourself\CodeYourself\CodeYourself\obj\Debug\CodeYourself.Properties.Resources.resources
+C:\Users\Kritt\source\Code-Yourself\CodeYourself\CodeYourself\obj\Debug\CodeYourself.csproj.GenerateResource.cache
+C:\Users\Kritt\source\Code-Yourself\CodeYourself\CodeYourself\obj\Debug\CodeYourself.csproj.CoreCompileInputs.cache
+C:\Users\Kritt\source\Code-Yourself\CodeYourself\CodeYourself\obj\Debug\CodeYourself.exe
+C:\Users\Kritt\source\Code-Yourself\CodeYourself\CodeYourself\obj\Debug\CodeYourself.pdb
