@@ -4,28 +4,27 @@ namespace CodeYourself.Models
 {
     public class GameModel
     {
+        // ФИКСИРОВАННЫЕ размеры игрового поля (логические координаты)
+        public const int CanvasWidth = 800;   // ← увеличил до 800, чтобы было комфортнее
+        public const int CanvasHeight = 400;
+
         public Point PlayerPosition { get; private set; }
         public int TickCount { get; private set; } = 0;
 
         private const int PlayerSize = 50;
-        private const int GroundY = 300; // высота платформы
-        private const int CanvasWidth = 600;
+        private const int GroundY = 300; // относительно CanvasHeight
 
         public GameModel()
         {
             PlayerPosition = new Point(100, GroundY - PlayerSize);
         }
 
-        /// <summary>
-        /// Простое движение по тику (для недели 1)
-        /// </summary>
         public void Update()
         {
             TickCount++;
-            // Двигаемся вправо на 20 пикселей за тик
             int newX = PlayerPosition.X + 20;
 
-            // Если дошли до края — возвращаем в начало (цикл для теста)
+            // Цикл по фиксированному полю
             if (newX > CanvasWidth - PlayerSize)
                 newX = 50;
 

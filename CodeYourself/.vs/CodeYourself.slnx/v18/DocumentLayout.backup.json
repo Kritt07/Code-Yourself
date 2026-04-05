@@ -7,20 +7,20 @@
       "RelativeMoniker": "D:0:0:{34AF028B-3723-41B0-9E6A-C377D7CB5C9A}|CodeYourself\\CodeYourself.csproj|solutionrelative:codeyourself\\gamefrom.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{34AF028B-3723-41B0-9E6A-C377D7CB5C9A}|CodeYourself\\CodeYourself.csproj|c:\\users\\kritt\\source\\code-yourself\\codeyourself\\codeyourself\\gamefrom.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
-      "RelativeMoniker": "D:0:0:{34AF028B-3723-41B0-9E6A-C377D7CB5C9A}|CodeYourself\\CodeYourself.csproj|solutionrelative:codeyourself\\gamefrom.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{34AF028B-3723-41B0-9E6A-C377D7CB5C9A}|CodeYourself\\CodeYourself.csproj|c:\\users\\kritt\\source\\code-yourself\\codeyourself\\codeyourself\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{34AF028B-3723-41B0-9E6A-C377D7CB5C9A}|CodeYourself\\CodeYourself.csproj|solutionrelative:codeyourself\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{34AF028B-3723-41B0-9E6A-C377D7CB5C9A}|CodeYourself\\CodeYourself.csproj|c:\\users\\kritt\\source\\code-yourself\\codeyourself\\codeyourself\\controllers\\gamecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "AbsoluteMoniker": "D:0:0:{34AF028B-3723-41B0-9E6A-C377D7CB5C9A}|CodeYourself\\CodeYourself.csproj|C:\\Users\\Kritt\\source\\Code-Yourself\\CodeYourself\\codeyourself\\controllers\\gamecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{34AF028B-3723-41B0-9E6A-C377D7CB5C9A}|CodeYourself\\CodeYourself.csproj|solutionrelative:codeyourself\\controllers\\gamecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{34AF028B-3723-41B0-9E6A-C377D7CB5C9A}|CodeYourself\\CodeYourself.csproj|c:\\users\\kritt\\source\\code-yourself\\codeyourself\\codeyourself\\models\\gamemodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "AbsoluteMoniker": "D:0:0:{34AF028B-3723-41B0-9E6A-C377D7CB5C9A}|CodeYourself\\CodeYourself.csproj|C:\\Users\\Kritt\\source\\Code-Yourself\\CodeYourself\\codeyourself\\models\\gamemodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{34AF028B-3723-41B0-9E6A-C377D7CB5C9A}|CodeYourself\\CodeYourself.csproj|solutionrelative:codeyourself\\models\\gamemodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{34AF028B-3723-41B0-9E6A-C377D7CB5C9A}|CodeYourself\\CodeYourself.csproj|C:\\Users\\Kritt\\source\\Code-Yourself\\CodeYourself\\codeyourself\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{34AF028B-3723-41B0-9E6A-C377D7CB5C9A}|CodeYourself\\CodeYourself.csproj|solutionrelative:codeyourself\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{34AF028B-3723-41B0-9E6A-C377D7CB5C9A}|CodeYourself\\CodeYourself.csproj|C:\\Users\\Kritt\\source\\Code-Yourself\\CodeYourself\\codeyourself\\gamefrom.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
+      "RelativeMoniker": "D:0:0:{34AF028B-3723-41B0-9E6A-C377D7CB5C9A}|CodeYourself\\CodeYourself.csproj|solutionrelative:codeyourself\\gamefrom.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
     }
   ],
   "DocumentGroupContainers": [
@@ -40,7 +40,7 @@
               "RelativeDocumentMoniker": "CodeYourself\\GameFrom.cs",
               "ToolTip": "C:\\Users\\Kritt\\source\\Code-Yourself\\CodeYourself\\CodeYourself\\GameFrom.cs",
               "RelativeToolTip": "CodeYourself\\GameFrom.cs",
-              "ViewState": "AgIAABEAAAAAAAAAAAAQwCwAAABkAAAAAAAAAA==",
+              "ViewState": "AgIAAEIAAAAAAAAAAAAiwG4AAAARAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-04-05T16:37:17.381Z",
               "IsPinned": true,
@@ -48,7 +48,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 3,
               "Title": "Program.cs",
               "DocumentMoniker": "C:\\Users\\Kritt\\source\\Code-Yourself\\CodeYourself\\CodeYourself\\Program.cs",
               "RelativeDocumentMoniker": "CodeYourself\\Program.cs",
@@ -61,41 +61,40 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 1,
               "Title": "GameController.cs",
               "DocumentMoniker": "C:\\Users\\Kritt\\source\\Code-Yourself\\CodeYourself\\CodeYourself\\Controllers\\GameController.cs",
               "RelativeDocumentMoniker": "CodeYourself\\Controllers\\GameController.cs",
               "ToolTip": "C:\\Users\\Kritt\\source\\Code-Yourself\\CodeYourself\\CodeYourself\\Controllers\\GameController.cs",
               "RelativeToolTip": "CodeYourself\\Controllers\\GameController.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABMAAAAJAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAWAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-04-05T16:44:14.659Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 2,
               "Title": "GameModel.cs",
               "DocumentMoniker": "C:\\Users\\Kritt\\source\\Code-Yourself\\CodeYourself\\CodeYourself\\Models\\GameModel.cs",
               "RelativeDocumentMoniker": "CodeYourself\\Models\\GameModel.cs",
               "ToolTip": "C:\\Users\\Kritt\\source\\Code-Yourself\\CodeYourself\\CodeYourself\\Models\\GameModel.cs",
               "RelativeToolTip": "CodeYourself\\Models\\GameModel.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABcAAAAYAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAkAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-04-05T16:43:51.437Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 4,
               "Title": "GameFrom.cs [\u041A\u043E\u043D\u0441\u0442\u0440\u0443\u043A\u0442\u043E\u0440]",
               "DocumentMoniker": "C:\\Users\\Kritt\\source\\Code-Yourself\\CodeYourself\\CodeYourself\\GameFrom.cs",
               "RelativeDocumentMoniker": "CodeYourself\\GameFrom.cs",
               "ToolTip": "C:\\Users\\Kritt\\source\\Code-Yourself\\CodeYourself\\CodeYourself\\GameFrom.cs [\u041A\u043E\u043D\u0441\u0442\u0440\u0443\u043A\u0442\u043E\u0440]",
               "RelativeToolTip": "CodeYourself\\GameFrom.cs [\u041A\u043E\u043D\u0441\u0442\u0440\u0443\u043A\u0442\u043E\u0440]",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-04-05T14:44:06.875Z",
-              "EditorCaption": " [\u041A\u043E\u043D\u0441\u0442\u0440\u0443\u043A\u0442\u043E\u0440]"
+              "WhenOpened": "2026-04-05T14:44:06.875Z"
             }
           ]
         }
