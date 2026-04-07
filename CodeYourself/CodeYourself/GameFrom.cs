@@ -31,7 +31,7 @@ namespace CodeYourself
             this.Size = new Size(1400, 650);           // комфортный стартовый размер
             this.MinimumSize = new Size(1350, 600);    // теперь канвас 800px точно помещается в правую панель (60%)
 
-            // === SplitContainer ===
+            // SplitContainer 
             var splitContainer = new SplitContainer
             {
                 Dock = DockStyle.Fill,
@@ -40,7 +40,7 @@ namespace CodeYourself
             };
             this.Controls.Add(splitContainer);
 
-            // === ЛЕВАЯ ЧАСТЬ (редактор кода) ===
+            // ЛЕВАЯ ЧАСТЬ (редактор кода)
             var leftPanel = new Panel
             {
                 Dock = DockStyle.Fill,
@@ -60,7 +60,7 @@ namespace CodeYourself
             };
             leftPanel.Controls.Add(_codeEditor);
 
-            // === ПРАВАЯ ЧАСТЬ (игровое поле) ===
+            // ПРАВАЯ ЧАСТЬ (игровое поле)
             _gamePanel = new Panel
             {
                 Dock = DockStyle.Fill,
@@ -68,7 +68,7 @@ namespace CodeYourself
             };
             _gamePanel.Paint += GamePanel_Paint;
 
-            // ← НОВОЕ: при любом изменении размера панели сразу перерисовываем
+            // при любом изменении размера панели сразу перерисовываем
             _gamePanel.Resize += (s, e) => _gamePanel.Invalidate();
 
             splitContainer.Panel2.Controls.Add(_gamePanel);
