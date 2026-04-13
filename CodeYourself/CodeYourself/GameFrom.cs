@@ -31,7 +31,7 @@ namespace CodeYourself
             this.Size = new Size(1400, 650);           // комфортный стартовый размер
             this.MinimumSize = new Size(1350, 600);    // теперь канвас 800px точно помещается в правую панель (60%)
 
-            // === SplitContainer ===
+            // SplitContainer
             var splitContainer = new SplitContainer
             {
                 Dock = DockStyle.Fill,
@@ -40,7 +40,7 @@ namespace CodeYourself
             };
             this.Controls.Add(splitContainer);
 
-            // === ЛЕВАЯ ЧАСТЬ (редактор кода) ===
+            // ЛЕВАЯ ЧАСТЬ (редактор кода)
             var leftPanel = new Panel
             {
                 Dock = DockStyle.Fill,
@@ -60,7 +60,7 @@ namespace CodeYourself
             };
             leftPanel.Controls.Add(_codeEditor);
 
-            // === ПРАВАЯ ЧАСТЬ (игровое поле) ===
+            // ПРАВАЯ ЧАСТЬ
             _gamePanel = new Panel
             {
                 Dock = DockStyle.Fill,
@@ -68,12 +68,12 @@ namespace CodeYourself
             };
             _gamePanel.Paint += GamePanel_Paint;
 
-            // ← НОВОЕ: при любом изменении размера панели сразу перерисовываем
+            // при любом изменении размера панели сразу перерисовываем
             _gamePanel.Resize += (s, e) => _gamePanel.Invalidate();
 
             splitContainer.Panel2.Controls.Add(_gamePanel);
 
-            // === Кнопки ===
+            //  Кнопки 
             var btnPanel = new FlowLayoutPanel
             {
                 Dock = DockStyle.Bottom,
@@ -85,15 +85,10 @@ namespace CodeYourself
             splitContainer.Panel2.Controls.Add(btnPanel);
 
             var btnRun = new Button { Text = "▶ Run", Width = 100, Height = 35, Margin = new Padding(10) };
-            var btnReset = new Button { Text = "⟳ Reset", Width = 100, Height = 35, Margin = new Padding(10) };
-
             btnRun.Click += (s, e) => _controller.Start();
-            btnReset.Click += (s, e) => _controller.Reset();
-
             btnPanel.Controls.Add(btnRun);
-            btnPanel.Controls.Add(btnReset);
 
-            // === ДИНАМИЧЕСКОЕ СОотношение 4:6 + принудительная перерисовка ===
+            // ДИНАМИЧЕСКОЕ СОотношение 4:6 + принудительная перерисовка
             this.Load += (s, e) =>
             {
                 int totalWidth = this.ClientSize.Width;
@@ -123,6 +118,7 @@ namespace CodeYourself
         {
             var g = e.Graphics;
             var model = _controller.Model;
+            var player = model.Player;
 
             // === Центрируем виртуальное поле внутри _gamePanel ===
             int offsetX = (_gamePanel.Width - GameModel.CanvasWidth) / 2;
@@ -138,14 +134,14 @@ namespace CodeYourself
 
             // Персонаж
             g.FillRectangle(Brushes.LimeGreen, 
-                            model.PlayerPosition.X, 
-                            model.PlayerPosition.Y, 
+                            player.Position.X, 
+                            player.Position.Y, 
                             50, 50);
 
             // Подпись Player
             using (var font = new Font("Arial", 12, FontStyle.Bold))
-                g.DrawString("Player", font, Brushes.White, 
-                             model.PlayerPosition.X + 8, model.PlayerPosition.Y - 25);
+                g.DrawString("Player", font, Brushes.White,
+                             player.Position.X + 8, player.Position.Y - 25);
 
             // Отладка
             using (var font = new Font("Consolas", 10))

@@ -1,40 +1,53 @@
-﻿using System.Drawing;
+﻿using System;
+using System.Drawing;
+using System.Xml.Serialization;
 
 namespace CodeYourself.Models
 {
+    public enum MoveDirection
+    {
+        Left,
+        Right
+    }
+
     public class GameModel
     {
-        // ФИКСИРОВАННЫЕ размеры игрового поля (логические координаты)
-        public const int CanvasWidth = 800;   // ← увеличил до 800, чтобы было комфортнее
+        public const int CanvasWidth = 800;
         public const int CanvasHeight = 400;
 
-        public Point PlayerPosition { get; private set; }
-        public int TickCount { get; private set; } = 0;
+        private const int GroundY = 300;
+        private const int PlayerSize = 20;
 
-        private const int PlayerSize = 50;
-        private const int GroundY = 300; // относительно CanvasHeight
+        public Player Player { get; set; }
+        public int TickCount { get; private set; } = 0;
 
         public GameModel()
         {
-            PlayerPosition = new Point(100, GroundY - PlayerSize);
+            Player = new Player(50, GroundY - PlayerSize);
         }
 
         public void Update()
         {
             TickCount++;
-            int newX = PlayerPosition.X + 20;
+        }
+    }
 
-            // Цикл по фиксированному полю
-            if (newX > CanvasWidth - PlayerSize)
-                newX = 50;
-
-            PlayerPosition = new Point(newX, PlayerPosition.Y);
+    public class Player
+    {
+        public Point Position { get; private set; }
+        public int Size { get; private set; }
+        public Player(int x, int y)
+        {
+            Position = new Point(x, y);
+            Size = 20;
         }
 
-        public void Reset()
+        public void MovePlayer(MoveDirection direction)
         {
-            PlayerPosition = new Point(50, GroundY - PlayerSize);
-            TickCount = 0;
+            if (direction == MoveDirection.Left)
+                Position = new Point(Position.X - 10, Position.Y);
+            else if (direction == MoveDirection.Right)
+                Position = new Point(Position.X + 10, Position.Y);
         }
     }
 }

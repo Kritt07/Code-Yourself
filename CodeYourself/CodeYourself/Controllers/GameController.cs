@@ -29,15 +29,10 @@ namespace CodeYourself.Controllers
             _tickTimer.Stop();
         }
 
-        public void Reset()
-        {
-            _model.Reset();
-            GameUpdated?.Invoke();
-        }
-
         private void TickTimer_Tick(object sender, EventArgs e)
         {
             _model.Update();
+            _model.Player.MovePlayer(MoveDirection.Right); // для теста двигаем персонажа вправо каждый тик
             GameUpdated?.Invoke(); // говорим View, что нужно перерисоваться
         }
 
