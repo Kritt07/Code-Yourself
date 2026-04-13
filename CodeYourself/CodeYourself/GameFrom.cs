@@ -31,7 +31,6 @@ namespace CodeYourself
             this.Size = new Size(1400, 650);           // комфортный стартовый размер
             this.MinimumSize = new Size(1350, 600);    // теперь канвас 800px точно помещается в правую панель (60%)
 
-            // SplitContainer
             var splitContainer = new SplitContainer
             {
                 Dock = DockStyle.Fill,
@@ -60,7 +59,7 @@ namespace CodeYourself
             };
             leftPanel.Controls.Add(_codeEditor);
 
-            // ПРАВАЯ ЧАСТЬ
+            // ПРАВАЯ ЧАСТЬ 
             _gamePanel = new Panel
             {
                 Dock = DockStyle.Fill,
