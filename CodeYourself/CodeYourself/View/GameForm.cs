@@ -12,17 +12,39 @@ using CodeYourself.Models;
 
 namespace CodeYourself
 {
-    public partial class GameFrom : Form
+    public partial class GameForm : Form
     {
         private GameController _controller;
+        private GameModel _model;
         private Panel _gamePanel;     // правое игровое поле
         private TextBox _codeEditor;  // левое поле (пока просто заглушка)
+        private SplitContainer _splitContainer;
+        private bool _splitterTouchedByUser;
 
-        public GameFrom()
+        public GameForm(GameModel model, GameController controller)
         {
-            InitializeComponent();
+            _controller = controller;
+            _model = model; 
             SetupUI();
-            InitializeMVC();
+            _controller.GameUpdated += Controller_GameUpdated;
+
+            FormClosed += GameForm_FormClosed;
+        }
+
+        private void Controller_GameUpdated()
+        {
+            if (!IsDisposed && _gamePanel != null && !_gamePanel.IsDisposed)
+                _gamePanel.Invalidate();
+        }
+
+        private void GameForm_FormClosed(object sender, FormClosedEventArgs e)
+        {
+            if (_controller != null)
+            {
+                _controller.GameUpdated -= Controller_GameUpdated;
+                _controller.Dispose();
+                _controller = null;
+            }
         }
 
         private void SetupUI()
@@ -31,21 +53,22 @@ namespace CodeYourself
             this.Size = new Size(1400, 650);           // комфортный стартовый размер
             this.MinimumSize = new Size(1350, 600);    // теперь канвас 800px точно помещается в правую панель (60%)
 
-            var splitContainer = new SplitContainer
+            _splitContainer = new SplitContainer
             {
                 Dock = DockStyle.Fill,
                 SplitterWidth = 8,
                 IsSplitterFixed = false
             };
-            this.Controls.Add(splitContainer);
+            _splitContainer.SplitterMoved += (s, e) => _splitterTouchedByUser = true;
+            this.Controls.Add(_splitContainer);
 
-            // ЛЕВАЯ ЧАСТЬ (редактор кода)
+            // ЛЕВАЯ ЧАСТЬ 
             var leftPanel = new Panel
             {
                 Dock = DockStyle.Fill,
                 BackColor = Color.FromArgb(30, 30, 30)
             };
-            splitContainer.Panel1.Controls.Add(leftPanel);
+            _splitContainer.Panel1.Controls.Add(leftPanel);
 
             _codeEditor = new TextBox
             {
@@ -70,7 +93,7 @@ namespace CodeYourself
             // при любом изменении размера панели сразу перерисовываем
             _gamePanel.Resize += (s, e) => _gamePanel.Invalidate();
 
-            splitContainer.Panel2.Controls.Add(_gamePanel);
+            _splitContainer.Panel2.Controls.Add(_gamePanel);
 
             //  Кнопки 
             var btnPanel = new FlowLayoutPanel
@@ -81,43 +104,27 @@ namespace CodeYourself
                 FlowDirection = FlowDirection.LeftToRight,
                 ForeColor = Color.White
             };
-            splitContainer.Panel2.Controls.Add(btnPanel);
+            _splitContainer.Panel2.Controls.Add(btnPanel);
 
             var btnRun = new Button { Text = "▶ Run", Width = 100, Height = 35, Margin = new Padding(10) };
             btnRun.Click += (s, e) => _controller.Start();
             btnPanel.Controls.Add(btnRun);
 
-            // ДИНАМИЧЕСКОЕ СОотношение 4:6 + принудительная перерисовка
-            this.Load += (s, e) =>
+            Load += (s, e) =>
             {
-                int totalWidth = this.ClientSize.Width;
-                splitContainer.SplitterDistance = (int)(totalWidth * 0.4);
+                if (!_splitterTouchedByUser)
+                {
+                    int totalWidth = ClientSize.Width;
+                    _splitContainer.SplitterDistance = (int)(totalWidth * 0.4);
+                }
                 _gamePanel.Invalidate(); // сразу центрируем при запуске
             };
-
-            this.Resize += (s, e) =>
-            {
-                if (splitContainer != null)
-                {
-                    int totalWidth = this.ClientSize.Width;
-                    splitContainer.SplitterDistance = (int)(totalWidth * 0.4);
-                    _gamePanel.Invalidate(); // ВАЖНО: перерисовка при изменении высоты/ширины
-                }
-            };
-        }
-
-        private void InitializeMVC()
-        {
-            var model = new GameModel();
-            _controller = new GameController(model);
-            _controller.GameUpdated += () => _gamePanel.Invalidate(); // перерисовка
         }
 
         private void GamePanel_Paint(object sender, PaintEventArgs e)
         {
             var g = e.Graphics;
-            var model = _controller.Model;
-            var player = model.Player;
+            var player = _model.Player;
 
             // === Центрируем виртуальное поле внутри _gamePanel ===
             int offsetX = (_gamePanel.Width - GameModel.CanvasWidth) / 2;
@@ -128,14 +135,14 @@ namespace CodeYourself
 
             // Рисуем землю (только в пределах виртуального поля)
             g.FillRectangle(Brushes.DarkSlateGray, 
-                            0, GameModel.CanvasHeight - 50, 
-                            GameModel.CanvasWidth, 50);
+                            0, GameModel.GroundY, 
+                            GameModel.CanvasWidth, GameModel.GroundHeight);
 
             // Персонаж
             g.FillRectangle(Brushes.LimeGreen, 
                             player.Position.X, 
                             player.Position.Y, 
-                            50, 50);
+                            player.Size, player.Size);
 
             // Подпись Player
             using (var font = new Font("Arial", 12, FontStyle.Bold))
@@ -144,7 +151,7 @@ namespace CodeYourself
 
             // Отладка
             using (var font = new Font("Consolas", 10))
-                g.DrawString($"Tick: {model.TickCount} | Canvas: {GameModel.CanvasWidth}x{GameModel.CanvasHeight}", 
+                g.DrawString($"Tick: {_model.TickCount} | Canvas: {GameModel.CanvasWidth}x{GameModel.CanvasHeight}", 
                              font, Brushes.Yellow, 20, 20);
 
             // Сбрасываем трансформацию (чтобы кнопки не сдвинулись)

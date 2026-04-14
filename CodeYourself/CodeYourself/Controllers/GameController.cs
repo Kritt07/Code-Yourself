@@ -1,12 +1,16 @@
-﻿using CodeYourself.Models;
+﻿using CodeYourself.Commands.Base;
+using CodeYourself.Models;
 using System;
+using System.Collections.Generic;
 
 namespace CodeYourself.Controllers
 {
-    public class GameController
+    public sealed class GameController : IDisposable
     {
+        private readonly Queue<GameCommand> _commandQueue = new Queue<GameCommand>();
+
         private readonly GameModel _model;
-        private System.Windows.Forms.Timer _tickTimer;
+        private readonly System.Windows.Forms.Timer _tickTimer;
 
         public event Action GameUpdated; // событие для перерисовки
 
@@ -29,13 +33,36 @@ namespace CodeYourself.Controllers
             _tickTimer.Stop();
         }
 
+        public void EnqueueCommand(GameCommand command)
+        {
+            if (command == null) throw new ArgumentNullException(nameof(command));
+            _commandQueue.Enqueue(command);
+        }
+
+        public void ClearCommands()
+        {
+            _commandQueue.Clear();
+        }
+
         private void TickTimer_Tick(object sender, EventArgs e)
         {
+            if (_commandQueue.Count > 0)
+            {
+                var command = _commandQueue.Dequeue();
+                command.Execute(_model);
+            }
+              
             _model.Update();
-            _model.Player.MovePlayer(MoveDirection.Right); // для теста двигаем персонажа вправо каждый тик
             GameUpdated?.Invoke(); // говорим View, что нужно перерисоваться
         }
 
         public GameModel Model => _model;
+
+        public void Dispose()
+        {
+            Stop();
+            _tickTimer.Tick -= TickTimer_Tick;
+            _tickTimer.Dispose();
+        }
     }
 }

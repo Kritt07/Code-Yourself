@@ -15,39 +15,29 @@ namespace CodeYourself.Models
         public const int CanvasWidth = 800;
         public const int CanvasHeight = 400;
 
-        private const int GroundY = 300;
-        private const int PlayerSize = 20;
+        public const int GroundHeight = 50;
+        public const int GroundY = CanvasHeight - GroundHeight;
+        public const int PlayerSize = 50;
 
         public Player Player { get; set; }
         public int TickCount { get; private set; } = 0;
 
         public GameModel()
         {
-            Player = new Player(50, GroundY - PlayerSize);
+            Player = new Player(50, GroundY - PlayerSize, PlayerSize);
         }
 
         public void Update()
         {
             TickCount++;
         }
-    }
-
-    public class Player
-    {
-        public Point Position { get; private set; }
-        public int Size { get; private set; }
-        public Player(int x, int y)
-        {
-            Position = new Point(x, y);
-            Size = 20;
-        }
 
         public void MovePlayer(MoveDirection direction)
         {
-            if (direction == MoveDirection.Left)
-                Position = new Point(Position.X - 10, Position.Y);
-            else if (direction == MoveDirection.Right)
-                Position = new Point(Position.X + 10, Position.Y);
+            var dx = direction == MoveDirection.Left ? -Player.DefaultStep : Player.DefaultStep;
+            var newX = Player.Position.X + dx;
+            newX = Math.Max(0, Math.Min(CanvasWidth - Player.Size, newX));
+            Player.SetPosition(newX, Player.Position.Y);
         }
     }
 }

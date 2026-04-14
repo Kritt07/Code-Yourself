@@ -1,6 +1,6 @@
 ﻿namespace CodeYourself
 {
-    partial class GameFrom
+    partial class GameForm
     {
         /// <summary>
         /// Обязательная переменная конструктора.

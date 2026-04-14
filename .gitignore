@@ -1,0 +1,45 @@
+.vs/
+bin/
+obj/
+**/bin/
+**/obj/
+
+# Visual Studio user files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.VC.db
+*.VC.opendb
+
+# Build outputs
+*.exe
+*.dll
+*.pdb
+
+# OS / tooling
+Thumbs.db
+Desktop.ini
+*.log
+# Local agent context (do not commit)
+AGENT.md
+
+# Visual Studio / VS Code / Rider
+.vs/
+.vscode/
+.idea/
+
+# Build outputs
+**/bin/
+**/obj/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Logs / temp
+*.log
+*.tmp
+

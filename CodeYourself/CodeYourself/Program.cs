@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using CodeYourself.Controllers;
+using CodeYourself.Models;
 
 namespace CodeYourself
 {
@@ -16,7 +18,10 @@ namespace CodeYourself
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new GameFrom());
+
+            var model = new GameModel();
+            var controller = new GameController(model);
+            Application.Run(new GameForm(model, controller));
         }
     }
 }
