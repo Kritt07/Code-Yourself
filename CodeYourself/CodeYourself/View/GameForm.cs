@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using CodeYourself.Controllers;
 using CodeYourself.Models;
+using CodeYourself.Parsing;
 
 namespace CodeYourself
 {
@@ -20,6 +21,7 @@ namespace CodeYourself
         private TextBox _codeEditor;  // левое поле (пока просто заглушка)
         private SplitContainer _splitContainer;
         private bool _splitterTouchedByUser;
+        private readonly CommandParser _parser = new CommandParser();
 
         public GameForm(GameModel model, GameController controller)
         {
@@ -27,8 +29,17 @@ namespace CodeYourself
             _model = model; 
             SetupUI();
             _controller.GameUpdated += Controller_GameUpdated;
+            _controller.CurrentLineIndexChanged += Controller_CurrentLineIndexChanged;
 
             FormClosed += GameForm_FormClosed;
+        }
+
+        private void Controller_CurrentLineIndexChanged(int lineIndex)
+        {
+            if (IsDisposed || _codeEditor == null || _codeEditor.IsDisposed)
+                return;
+
+            HighlightLine(lineIndex);
         }
 
         private void Controller_GameUpdated()
@@ -42,6 +53,7 @@ namespace CodeYourself
             if (_controller != null)
             {
                 _controller.GameUpdated -= Controller_GameUpdated;
+                _controller.CurrentLineIndexChanged -= Controller_CurrentLineIndexChanged;
                 _controller.Dispose();
                 _controller = null;
             }
@@ -49,7 +61,7 @@ namespace CodeYourself
 
         private void SetupUI()
         {
-            this.Text = "Code Yourself - Неделя 1";
+            this.Text = "Code Yourself - Неделя 2";
             this.Size = new Size(1400, 650);           // комфортный стартовый размер
             this.MinimumSize = new Size(1350, 600);    // теперь канвас 800px точно помещается в правую панель (60%)
 
@@ -77,8 +89,10 @@ namespace CodeYourself
                 BackColor = Color.FromArgb(20, 20, 20),
                 ForeColor = Color.LightGreen,
                 Font = new Font("Consolas", 11),
-                Text = "write your code here\r\n(пока не используется — неделя 1)",
-                ReadOnly = true
+                Text = "MOVE RIGHT 3\r\nWAIT 1\r\nMOVE LEFT 2\r\n",
+                ReadOnly = false,
+                AcceptsTab = true,
+                ScrollBars = ScrollBars.Vertical
             };
             leftPanel.Controls.Add(_codeEditor);
 
@@ -107,8 +121,12 @@ namespace CodeYourself
             _splitContainer.Panel2.Controls.Add(btnPanel);
 
             var btnRun = new Button { Text = "▶ Run", Width = 100, Height = 35, Margin = new Padding(10) };
-            btnRun.Click += (s, e) => _controller.Start();
+            btnRun.Click += (s, e) => RunProgram();
             btnPanel.Controls.Add(btnRun);
+
+            var btnReset = new Button { Text = "↺ Reset", Width = 100, Height = 35, Margin = new Padding(10) };
+            btnReset.Click += (s, e) => ResetGame();
+            btnPanel.Controls.Add(btnReset);
 
             Load += (s, e) =>
             {
@@ -119,6 +137,56 @@ namespace CodeYourself
                 }
                 _gamePanel.Invalidate(); // сразу центрируем при запуске
             };
+        }
+
+        private void RunProgram()
+        {
+            _controller.Stop();
+            _controller.ClearCommands();
+
+            var result = _parser.Parse(_codeEditor.Text);
+            if (!result.IsSuccess)
+            {
+                var msg = string.Join("\r\n", result.Errors.Select(e => $"Line {e.LineIndex + 1}: {e.Message}"));
+                MessageBox.Show(this, msg, "Parse error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            foreach (var cmd in result.Commands)
+                _controller.EnqueueCommand(cmd);
+
+            _codeEditor.ReadOnly = true;
+            _controller.Start();
+        }
+
+        private void ResetGame()
+        {
+            _controller.Stop();
+            _controller.ClearCommands();
+            _model.Reset();
+            _codeEditor.ReadOnly = false;
+            _gamePanel.Invalidate();
+        }
+
+        private void HighlightLine(int lineIndex)
+        {
+            if (lineIndex < 0 || lineIndex >= _codeEditor.Lines.Length)
+            {
+                _codeEditor.SelectionLength = 0;
+                _codeEditor.ReadOnly = false;
+                return;
+            }
+
+            var start = _codeEditor.GetFirstCharIndexFromLine(lineIndex);
+            if (start < 0)
+                return;
+
+            var length = _codeEditor.Lines[lineIndex].Length;
+
+            _codeEditor.SelectionStart = start;
+            _codeEditor.SelectionLength = length;
+            _codeEditor.ScrollToCaret();
+            _codeEditor.Focus();
         }
 
         private void GamePanel_Paint(object sender, PaintEventArgs e)

@@ -13,6 +13,10 @@ namespace CodeYourself.Controllers
         private readonly System.Windows.Forms.Timer _tickTimer;
 
         public event Action GameUpdated; // событие для перерисовки
+        public event Action<int> CurrentLineIndexChanged;
+
+        public int CurrentLineIndex { get; private set; } = -1;
+        public bool IsRunning => _tickTimer.Enabled;
 
         public GameController(GameModel model)
         {
@@ -25,12 +29,16 @@ namespace CodeYourself.Controllers
 
         public void Start()
         {
+            if (_commandQueue.Count == 0)
+                return;
+
             _tickTimer.Start();
         }
 
         public void Stop()
         {
             _tickTimer.Stop();
+            SetCurrentLineIndex(-1);
         }
 
         public void EnqueueCommand(GameCommand command)
@@ -46,9 +54,17 @@ namespace CodeYourself.Controllers
 
         private void TickTimer_Tick(object sender, EventArgs e)
         {
+            if (_commandQueue.Count == 0)
+            {
+                Stop();
+                GameUpdated?.Invoke();
+                return;
+            }
+
             if (_commandQueue.Count > 0)
             {
                 var command = _commandQueue.Dequeue();
+                SetCurrentLineIndex(command.LineIndex);
                 command.Execute(_model);
             }
               
@@ -57,6 +73,15 @@ namespace CodeYourself.Controllers
         }
 
         public GameModel Model => _model;
+
+        private void SetCurrentLineIndex(int lineIndex)
+        {
+            if (CurrentLineIndex == lineIndex)
+                return;
+
+            CurrentLineIndex = lineIndex;
+            CurrentLineIndexChanged?.Invoke(lineIndex);
+        }
 
         public void Dispose()
         {

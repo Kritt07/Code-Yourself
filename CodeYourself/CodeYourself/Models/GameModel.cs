@@ -22,14 +22,22 @@ namespace CodeYourself.Models
         public Player Player { get; set; }
         public int TickCount { get; private set; } = 0;
 
+        private readonly Point _playerStartPosition = new Point(50, GroundY - PlayerSize);
+
         public GameModel()
         {
-            Player = new Player(50, GroundY - PlayerSize, PlayerSize);
+            Player = new Player(_playerStartPosition.X, _playerStartPosition.Y, PlayerSize);
         }
 
         public void Update()
         {
             TickCount++;
+        }
+
+        public void Reset()
+        {
+            TickCount = 0;
+            Player.SetPosition(_playerStartPosition.X, _playerStartPosition.Y);
         }
 
         public void MovePlayer(MoveDirection direction)

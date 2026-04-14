@@ -19,6 +19,9 @@ using System.Runtime.InteropServices;
 // COM, следует установить атрибут ComVisible в TRUE для этого типа.
 [assembly: ComVisible(false)]
 
+// Allow test project to assert on internal command types.
+[assembly: InternalsVisibleTo("CodeYourself.Tests")]
+
 // Следующий GUID служит для идентификации библиотеки типов, если этот проект будет видимым для COM
 [assembly: Guid("34af028b-3723-41b0-9e6a-c377d7cb5c9a")]
 
