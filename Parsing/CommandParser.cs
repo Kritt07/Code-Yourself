@@ -63,8 +63,8 @@ namespace CodeYourself.Parsing
 
             public override void Emit(List<GameCommand> output)
             {
-                for (int stepIndex = 0; stepIndex < _count; stepIndex++)
-                    output.Add(new JumpCommand(LineIndex, _direction, stepIndex, _count));
+                for (int k = 0; k < _count; k++)
+                    output.Add(new JumpCommand(LineIndex, _direction));
             }
         }
 
@@ -196,25 +196,43 @@ namespace CodeYourself.Parsing
                     continue;
                 }
 
-                if (keyword == "MOVE" || keyword == "JUMP")
+                if (keyword == "MOVE")
                 {
                     if (tokens.Length < 2)
                     {
-                        errors.Add(new ParseError(index, $"{keyword} requires direction: LEFT or RIGHT"));
+                        errors.Add(new ParseError(index, "MOVE requires direction: LEFT or RIGHT"));
                         continue;
                     }
 
-                    if (!TryParseDirection(tokens[1], index, errors, keyword, out var dir))
+                    if (!TryParseDirection(tokens[1], index, errors, "MOVE", out var dir))
                         continue;
 
                     if (!TryParseOptionalCountAfterDirection(tokens, index, errors, out var n))
                         continue;
 
-                    if (keyword == "MOVE")
-                        nodes.Add(new MoveNode(index, dir, n));
-                    else
-                        nodes.Add(new JumpNode(index, dir, n));
+                    nodes.Add(new MoveNode(index, dir, n));
 
+                    continue;
+                }
+
+                if (keyword == "JUMP")
+                {
+                    if (tokens.Length < 2)
+                    {
+                        errors.Add(new ParseError(index, "JUMP requires direction: LEFT or RIGHT"));
+                        continue;
+                    }
+
+                    if (!TryParseDirection(tokens[1], index, errors, "JUMP", out var dir))
+                        continue;
+
+                    if (tokens.Length > 2)
+                    {
+                        errors.Add(new ParseError(index, "JUMP does not take a count. Use: JUMP LEFT|RIGHT"));
+                        continue;
+                    }
+
+                    nodes.Add(new JumpNode(index, dir, count: 1));
                     continue;
                 }
 

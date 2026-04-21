@@ -7,6 +7,7 @@ namespace CodeYourself.Controllers
 {
     public sealed class GameController : IDisposable
     {
+        private const int SubTicksPerCommandTick = 30;
         private readonly Queue<GameCommand> _commandQueue = new Queue<GameCommand>();
 
         private readonly GameModel _model;
@@ -23,7 +24,7 @@ namespace CodeYourself.Controllers
             _model = model;
 
             _tickTimer = new System.Windows.Forms.Timer();
-            _tickTimer.Interval = 500; // 500 мс = 2 тика в секунду (можно потом поставить 1000)
+            _tickTimer.Interval = 1000; // 1 тик/сек: 1 команда/сек, но симуляция будет в под-тиках
             _tickTimer.Tick += TickTimer_Tick;
         }
 
@@ -54,6 +55,8 @@ namespace CodeYourself.Controllers
 
         private void TickTimer_Tick(object sender, EventArgs e)
         {
+            _model.BeginCommandTick(SubTicksPerCommandTick);
+
             if (_commandQueue.Count == 0)
             {
                 Stop();
@@ -67,8 +70,18 @@ namespace CodeYourself.Controllers
                 SetCurrentLineIndex(command.LineIndex);
                 command.Execute(_model);
             }
-              
-            _model.Update();
+
+            for (int i = 0; i < SubTicksPerCommandTick; i++)
+                _model.StepSubTick();
+            _model.EndCommandTick();
+
+            if (_model.IsGameOver)
+            {
+                Stop();
+                GameUpdated?.Invoke();
+                return;
+            }
+
             GameUpdated?.Invoke(); // говорим View, что нужно перерисоваться
         }
 

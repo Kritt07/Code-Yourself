@@ -10,6 +10,7 @@ using System.Windows.Forms;
 using CodeYourself.Controllers;
 using CodeYourself.Models;
 using CodeYourself.Parsing;
+using CodeYourself.Models.Obstacles;
 
 namespace CodeYourself
 {
@@ -28,10 +29,34 @@ namespace CodeYourself
             _controller = controller;
             _model = model; 
             SetupUI();
+            SetupLevel();
             _controller.GameUpdated += Controller_GameUpdated;
             _controller.CurrentLineIndexChanged += Controller_CurrentLineIndexChanged;
 
             FormClosed += GameForm_FormClosed;
+        }
+
+        private void SetupLevel()
+        {
+            // MVP препятствия для недели 3.
+            _model.ClearObstacles();
+
+            // Пила: по земле, ходит туда-обратно.
+            _model.AddObstacle(new SawObstacle(
+                minX: 250,
+                maxX: 550,
+                y: GameModel.GroundY - 50,
+                size: 50,
+                stepPerTick: 50));
+
+            // Платформа: чуть выше земли, ходит туда-обратно.
+            _model.AddObstacle(new MovingPlatformObstacle(
+                minX: 100,
+                maxX: 650,
+                y: GameModel.GroundY - 120,
+                width: 150,
+                height: 20,
+                stepPerTick: 50));
         }
 
         private void Controller_CurrentLineIndexChanged(int lineIndex)
@@ -61,7 +86,7 @@ namespace CodeYourself
 
         private void SetupUI()
         {
-            this.Text = "Code Yourself - Неделя 2";
+            this.Text = "Code Yourself - Неделя 3";
             this.Size = new Size(1400, 650);           // комфортный стартовый размер
             this.MinimumSize = new Size(1350, 600);    // теперь канвас 800px точно помещается в правую панель (60%)
 
@@ -89,7 +114,7 @@ namespace CodeYourself
                 BackColor = Color.FromArgb(20, 20, 20),
                 ForeColor = Color.LightGreen,
                 Font = new Font("Consolas", 11),
-                Text = "REPEAT 2\r\n  MOVE RIGHT 2\r\n  JUMP RIGHT 3\r\n  WAIT 1\r\nEND\r\n",
+                Text = "REPEAT 2\r\n  MOVE RIGHT 2\r\n  JUMP RIGHT\r\n  WAIT 1\r\nEND\r\n",
                 ReadOnly = false,
                 AcceptsTab = true,
                 ScrollBars = ScrollBars.Vertical
@@ -164,6 +189,7 @@ namespace CodeYourself
             _controller.Stop();
             _controller.ClearCommands();
             _model.Reset();
+            SetupLevel();
             _codeEditor.ReadOnly = false;
             _gamePanel.Invalidate();
         }
@@ -206,6 +232,17 @@ namespace CodeYourself
                             0, GameModel.GroundY, 
                             GameModel.CanvasWidth, GameModel.GroundHeight);
 
+            // Препятствия
+            foreach (var obstacle in _model.Obstacles)
+            {
+                Brush brush = Brushes.OrangeRed;
+                if (obstacle.Kind == ObstacleKind.MovingPlatform)
+                    brush = Brushes.SteelBlue;
+
+                var r = obstacle.Bounds;
+                g.FillRectangle(brush, r.X, r.Y, r.Width, r.Height);
+            }
+
             // Персонаж
             g.FillRectangle(Brushes.LimeGreen, 
                             player.Position.X, 
@@ -221,6 +258,20 @@ namespace CodeYourself
             using (var font = new Font("Consolas", 10))
                 g.DrawString($"Tick: {_model.TickCount} | Canvas: {GameModel.CanvasWidth}x{GameModel.CanvasHeight}", 
                              font, Brushes.Yellow, 20, 20);
+
+            if (_model.IsGameOver)
+            {
+                using (var font = new Font("Arial", 18, FontStyle.Bold))
+                {
+                    g.DrawString("GAME OVER", font, Brushes.Red, 20, 50);
+                }
+
+                if (!string.IsNullOrWhiteSpace(_model.GameOverReason))
+                {
+                    using (var font = new Font("Consolas", 10))
+                        g.DrawString(_model.GameOverReason, font, Brushes.White, 20, 80);
+                }
+            }
 
             // Сбрасываем трансформацию (чтобы кнопки не сдвинулись)
             g.ResetTransform();

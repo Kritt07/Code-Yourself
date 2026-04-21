@@ -34,16 +34,30 @@ namespace CodeYourself.Tests.Parsing
         }
 
         [TestMethod]
-        public void JumpRight_3_ExpandsToThreeCommands_WithSameLineIndex()
+        public void JumpRight_WithCount_ReturnsError()
         {
             var parser = new CommandParser();
             var result = parser.Parse("JUMP RIGHT 3");
+            var errors = result.Errors.ToList();
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.AreEqual(0, result.Commands.Count());
+            Assert.AreEqual(1, errors.Count);
+            Assert.AreEqual(0, errors[0].LineIndex);
+            StringAssert.Contains(errors[0].Message, "does not take");
+        }
+
+        [TestMethod]
+        public void JumpRight_WithoutCount_ParsesToSingleCommand()
+        {
+            var parser = new CommandParser();
+            var result = parser.Parse("JUMP RIGHT");
             var commands = result.Commands.ToList();
 
             Assert.IsTrue(result.IsSuccess);
-            Assert.AreEqual(3, commands.Count);
-            Assert.IsTrue(commands.All(c => c is JumpCommand));
-            Assert.IsTrue(commands.All(c => c.LineIndex == 0));
+            Assert.AreEqual(1, commands.Count);
+            Assert.IsTrue(commands[0] is JumpCommand);
+            Assert.AreEqual(0, commands[0].LineIndex);
         }
 
         [TestMethod]

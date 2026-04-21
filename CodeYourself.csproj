@@ -52,6 +52,10 @@
     <Compile Include="Commands\WaitCommand.cs" />
     <Compile Include="Controllers\GameController.cs" />
     <Compile Include="Models\Player.cs" />
+    <Compile Include="Models\Obstacles\IObstacle.cs" />
+    <Compile Include="Models\Obstacles\MovingPlatformObstacle.cs" />
+    <Compile Include="Models\Obstacles\OscillatingMotion.cs" />
+    <Compile Include="Models\Obstacles\SawObstacle.cs" />
     <Compile Include="Parsing\CommandParser.cs" />
     <Compile Include="Parsing\ParseError.cs" />
     <Compile Include="View\GameForm.cs">
