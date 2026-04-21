@@ -21,8 +21,6 @@ obj/
 Thumbs.db
 Desktop.ini
 *.log
-# Local agent context (do not commit)
-AGENT.md
 
 # Visual Studio / VS Code / Rider
 .vs/

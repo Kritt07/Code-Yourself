@@ -47,6 +47,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Commands\Base\GameCommand.cs" />
+    <Compile Include="Commands\JumpCommand.cs" />
     <Compile Include="Commands\MoveCommand.cs" />
     <Compile Include="Commands\WaitCommand.cs" />
     <Compile Include="Controllers\GameController.cs" />

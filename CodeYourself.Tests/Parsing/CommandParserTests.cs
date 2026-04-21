@@ -34,6 +34,49 @@ namespace CodeYourself.Tests.Parsing
         }
 
         [TestMethod]
+        public void JumpRight_3_ExpandsToThreeCommands_WithSameLineIndex()
+        {
+            var parser = new CommandParser();
+            var result = parser.Parse("JUMP RIGHT 3");
+            var commands = result.Commands.ToList();
+
+            Assert.IsTrue(result.IsSuccess);
+            Assert.AreEqual(3, commands.Count);
+            Assert.IsTrue(commands.All(c => c is JumpCommand));
+            Assert.IsTrue(commands.All(c => c.LineIndex == 0));
+        }
+
+        [TestMethod]
+        public void Repeat_2_RepeatsBodyTwice()
+        {
+            var parser = new CommandParser();
+            var text = "REPEAT 2\r\nMOVE RIGHT 1\r\nWAIT 1\r\nEND";
+            var result = parser.Parse(text);
+            var commands = result.Commands.ToList();
+
+            Assert.IsTrue(result.IsSuccess);
+            // (MOVE RIGHT 1 + WAIT 1) * 2
+            Assert.AreEqual(4, commands.Count);
+            Assert.IsTrue(commands[0] is MoveCommand);
+            Assert.IsTrue(commands[1] is WaitCommand);
+            Assert.IsTrue(commands[2] is MoveCommand);
+            Assert.IsTrue(commands[3] is WaitCommand);
+        }
+
+        [TestMethod]
+        public void Repeat_AllowsNesting()
+        {
+            var parser = new CommandParser();
+            var text = "REPEAT 2\r\nREPEAT 3\r\nWAIT 1\r\nEND\r\nEND";
+            var result = parser.Parse(text);
+            var commands = result.Commands.ToList();
+
+            Assert.IsTrue(result.IsSuccess);
+            Assert.AreEqual(6, commands.Count);
+            Assert.IsTrue(commands.All(c => c is WaitCommand));
+        }
+
+        [TestMethod]
         public void EmptyLinesAndComments_AreIgnored()
         {
             var parser = new CommandParser();
@@ -44,6 +87,33 @@ namespace CodeYourself.Tests.Parsing
             Assert.IsTrue(result.IsSuccess);
             Assert.AreEqual(1, commands.Count);
             Assert.AreEqual(3, commands[0].LineIndex);
+        }
+
+        [TestMethod]
+        public void EndWithoutRepeat_ReturnsError()
+        {
+            var parser = new CommandParser();
+            var result = parser.Parse("END");
+            var errors = result.Errors.ToList();
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.AreEqual(0, result.Commands.Count());
+            Assert.AreEqual(1, errors.Count);
+            Assert.AreEqual(0, errors[0].LineIndex);
+            StringAssert.Contains(errors[0].Message, "END without REPEAT");
+        }
+
+        [TestMethod]
+        public void Repeat_MissingEnd_ReturnsError()
+        {
+            var parser = new CommandParser();
+            var result = parser.Parse("REPEAT 2\r\nWAIT 1");
+            var errors = result.Errors.ToList();
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.AreEqual(0, result.Commands.Count());
+            Assert.AreEqual(1, errors.Count);
+            StringAssert.Contains(errors[0].Message, "Missing END");
         }
 
         [TestMethod]
