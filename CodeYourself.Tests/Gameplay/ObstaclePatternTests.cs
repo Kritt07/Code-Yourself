@@ -18,16 +18,16 @@ namespace CodeYourself.Tests.Gameplay
 
             for (int tick = 0; tick < expected.Length; tick++)
             {
-                var simTick = tick * GameModel.DefaultSubTicksPerCommandTick;
+                var simTick = tick * GameModel.DefaultCommandDurationSimTicks;
                 saw.Update(simTick);
                 Assert.AreEqual(expected[tick], saw.Bounds.X, $"tick={tick}");
                 Assert.AreEqual(y, saw.Bounds.Y, $"tick={tick}");
             }
 
             // Determinism: same tick => same X
-            saw.Update(3 * GameModel.DefaultSubTicksPerCommandTick);
+            saw.Update(3 * GameModel.DefaultCommandDurationSimTicks);
             var x1 = saw.Bounds.X;
-            saw.Update(3 * GameModel.DefaultSubTicksPerCommandTick);
+            saw.Update(3 * GameModel.DefaultCommandDurationSimTicks);
             var x2 = saw.Bounds.X;
             Assert.AreEqual(x1, x2);
         }
@@ -47,7 +47,7 @@ namespace CodeYourself.Tests.Gameplay
             var expected = new[] { 0, 50, 100, 150, 200, 150, 100, 50, 0 };
             for (int tick = 0; tick < expected.Length; tick++)
             {
-                var simTick = tick * GameModel.DefaultSubTicksPerCommandTick;
+                var simTick = tick * GameModel.DefaultCommandDurationSimTicks;
                 platform.Update(simTick);
                 Assert.AreEqual(expected[tick], platform.Bounds.X, $"tick={tick}");
             }

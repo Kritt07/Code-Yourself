@@ -14,7 +14,6 @@ namespace CodeYourself.Models
 
     public class GameModel
     {
-        public const int DefaultSubTicksPerCommandTick = 30;
         public const int CanvasWidth = 800;
         public const int CanvasHeight = 400;
 
@@ -23,10 +22,40 @@ namespace CodeYourself.Models
         public const int PlayerSize = 50;
 
         public Player Player { get; set; }
-        // Командные тики: один внешний тик = одна команда.
-        public int TickCount { get; private set; } = 0;
-        // Симуляционные тики (под-тиковый счётчик).
+        // Симуляционные тики (30 Гц).
         public int SimTickCount { get; private set; } = 0;
+
+        public const int DefaultCommandDurationSimTicks = 30;
+
+        public sealed class RenderSnapshot
+        {
+            public int SimTickCount { get; }
+            public Rectangle PlayerBounds { get; }
+            public ObstacleSnapshot[] Obstacles { get; }
+            public bool IsGameOver { get; }
+            public string GameOverReason { get; }
+
+            public RenderSnapshot(int simTickCount, Rectangle playerBounds, ObstacleSnapshot[] obstacles, bool isGameOver, string gameOverReason)
+            {
+                SimTickCount = simTickCount;
+                PlayerBounds = playerBounds;
+                Obstacles = obstacles ?? Array.Empty<ObstacleSnapshot>();
+                IsGameOver = isGameOver;
+                GameOverReason = gameOverReason;
+            }
+        }
+
+        public struct ObstacleSnapshot
+        {
+            public ObstacleKind Kind { get; }
+            public Rectangle Bounds { get; }
+
+            public ObstacleSnapshot(ObstacleKind kind, Rectangle bounds)
+            {
+                Kind = kind;
+                Bounds = bounds;
+            }
+        }
 
         private readonly Point _playerStartPosition = new Point(50, GroundY - PlayerSize);
 
@@ -36,14 +65,12 @@ namespace CodeYourself.Models
         public bool IsGameOver { get; private set; }
         public string GameOverReason { get; private set; }
 
-        private int _subTicksPerCommandTick = 1;
-
         private Rectangle? _playerPrevBounds;
         private readonly Dictionary<IObstacle, Rectangle> _obstaclePrevBounds = new Dictionary<IObstacle, Rectangle>();
 
         // Намерения игрока на текущий командный тик.
         private int _pendingMoveDx;
-        private int _pendingMoveSubTicksLeft;
+        private int _pendingMoveSimTicksLeft;
 
         private JumpState _jump;
 
@@ -75,18 +102,24 @@ namespace CodeYourself.Models
             _obstaclePrevBounds.Clear();
         }
 
-        public void BeginCommandTick(int subTicksPerCommandTick)
+        public RenderSnapshot CreateRenderSnapshot()
         {
-            _subTicksPerCommandTick = Math.Max(1, subTicksPerCommandTick);
-            _playerPrevBounds = GetPlayerBounds();
+            var obstacles = new ObstacleSnapshot[_obstacles.Count];
+            for (int i = 0; i < _obstacles.Count; i++)
+            {
+                var o = _obstacles[i];
+                obstacles[i] = new ObstacleSnapshot(o.Kind, o.Bounds);
+            }
+
+            return new RenderSnapshot(
+                simTickCount: SimTickCount,
+                playerBounds: GetPlayerBounds(),
+                obstacles: obstacles,
+                isGameOver: IsGameOver,
+                gameOverReason: GameOverReason);
         }
 
-        public void EndCommandTick()
-        {
-            TickCount++;
-        }
-
-        public void StepSubTick()
+        public void StepSimulationTick()
         {
             if (IsGameOver)
             {
@@ -100,11 +133,11 @@ namespace CodeYourself.Models
                 obstacle.Update(SimTickCount);
             }
 
-            // 1.5) Двигаем игрока на один под-тик согласно намерениям.
-            ApplyPlayerMovementForSubTick();
+            // 1.5) Двигаем игрока на один сим-так согласно намерениям.
+            ApplyPlayerMovementForSimulationTick();
 
             // 2) Платформы — не "смертельные", а твёрдые: разрешаем приземляться и ехать вместе с ними.
-            //    Если BeginCommandTick() не вызвали (например, в тестах/ручных сценариях) — fallback к текущему положению.
+            //    Если предыдущие границы ещё не зафиксированы (например, в тестах/ручных сценариях) — fallback к текущему положению.
             var prevPlayer = _playerPrevBounds ?? GetPlayerBounds();
             var currPlayer = GetPlayerBounds();
 
@@ -166,7 +199,7 @@ namespace CodeYourself.Models
             SimTickCount++;
         }
 
-        private void ApplyPlayerMovementForSubTick()
+        private void ApplyPlayerMovementForSimulationTick()
         {
             // Прыжок имеет приоритет и сам включает движение по X/Y.
             if (_jump != null && _jump.IsActive)
@@ -189,10 +222,10 @@ namespace CodeYourself.Models
                 return;
             }
 
-            if (_pendingMoveSubTicksLeft <= 0 || _pendingMoveDx == 0)
+            if (_pendingMoveSimTicksLeft <= 0 || _pendingMoveDx == 0)
                 return;
 
-            var remaining = Math.Max(1, _pendingMoveSubTicksLeft);
+            var remaining = Math.Max(1, _pendingMoveSimTicksLeft);
             var step = (int)Math.Round(_pendingMoveDx / (double)remaining);
             if (step == 0)
                 step = _pendingMoveDx > 0 ? 1 : -1;
@@ -202,7 +235,7 @@ namespace CodeYourself.Models
             Player.SetPosition(newX, Player.Position.Y);
 
             _pendingMoveDx -= step;
-            _pendingMoveSubTicksLeft--;
+            _pendingMoveSimTicksLeft--;
         }
 
         private static int Lerp(int a, int b, double t)
@@ -212,14 +245,13 @@ namespace CodeYourself.Models
 
         public void Reset()
         {
-            TickCount = 0;
             SimTickCount = 0;
             Player.SetPosition(_playerStartPosition.X, _playerStartPosition.Y);
             IsGameOver = false;
             GameOverReason = null;
             _playerPrevBounds = null;
             _pendingMoveDx = 0;
-            _pendingMoveSubTicksLeft = 0;
+            _pendingMoveSimTicksLeft = 0;
             _jump = null;
 
             foreach (var obstacle in _obstacles)
@@ -229,17 +261,17 @@ namespace CodeYourself.Models
             }
         }
 
-        public void MovePlayer(MoveDirection direction)
+        public void MovePlayer(MoveDirection direction, int durationSimTicks = DefaultCommandDurationSimTicks)
         {
             // Одна команда MOVE = движение на Player.DefaultStep,
-            // растянутое на текущий командный тик (в под-тиках).
+            // растянутое по сим-такту на длительность команды.
             var dx = direction == MoveDirection.Left ? -Player.DefaultStep : Player.DefaultStep;
             _pendingMoveDx = dx;
-            _pendingMoveSubTicksLeft = Math.Max(1, _subTicksPerCommandTick);
+            _pendingMoveSimTicksLeft = Math.Max(1, durationSimTicks);
             _jump = null;
         }
 
-        public void JumpPlayer(MoveDirection direction)
+        public void JumpPlayer(MoveDirection direction, int durationSimTicks = DefaultCommandDurationSimTicks)
         {
             const int jumpHeight = 120;
 
@@ -278,12 +310,12 @@ namespace CodeYourself.Models
             var newY = Math.Max(0, Math.Min(groundY, bestY));
 
             _pendingMoveDx = 0;
-            _pendingMoveSubTicksLeft = 0;
+            _pendingMoveSimTicksLeft = 0;
 
             _jump = new JumpState
             {
                 IsActive = true,
-                SubTicksTotal = Math.Max(1, _subTicksPerCommandTick),
+                SubTicksTotal = Math.Max(1, durationSimTicks),
                 SubTickIndex = 0,
                 Start = new Point(Player.Position.X, Player.Position.Y),
                 End = new Point(newX, newY),

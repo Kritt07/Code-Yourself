@@ -30,7 +30,7 @@ namespace CodeYourself.Models.Obstacles
 
         public void Update(int tickIndex)
         {
-            var x = OscillatingMotion.GetXForSubTick(tickIndex, _minX, _maxX, _stepPerTick);
+            var x = OscillatingMotion.GetXForSimTick(tickIndex, _minX, _maxX, _stepPerTick);
             Bounds = new Rectangle(x, _y, _size, _size);
         }
     }

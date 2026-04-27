@@ -20,11 +20,11 @@ namespace CodeYourself.Tests.Gameplay
             // Игрок стартует слева, "телепортом" пересекает пилу за один тик.
             model.SetPlayerPosition(0, GameModel.GroundY - GameModel.PlayerSize);
 
-            model.BeginCommandTick(subTicksPerCommandTick: 1); // фиксируем prev
-            model.SetPlayerPosition(600, GameModel.GroundY - GameModel.PlayerSize); // curr справа
-
-            model.StepSubTick();
-            model.EndCommandTick();
+            // 1) Фиксируем prev на левом положении (первый сим-тик).
+            model.StepSimulationTick();
+            // 2) Переносим игрока вправо и делаем следующий сим-тик: swept-collision должен сработать.
+            model.SetPlayerPosition(600, GameModel.GroundY - GameModel.PlayerSize);
+            model.StepSimulationTick();
 
             Assert.IsTrue(model.IsGameOver);
             StringAssert.Contains(model.GameOverReason, "Collision");
@@ -41,11 +41,10 @@ namespace CodeYourself.Tests.Gameplay
 
             model.SetPlayerPosition(0, GameModel.GroundY - GameModel.PlayerSize);
 
-            model.BeginCommandTick(subTicksPerCommandTick: 1);
+            model.StepSimulationTick();
             model.SetPlayerPosition(600, GameModel.GroundY - GameModel.PlayerSize);
 
-            model.StepSubTick();
-            model.EndCommandTick();
+            model.StepSimulationTick();
 
             Assert.IsFalse(model.IsGameOver);
         }

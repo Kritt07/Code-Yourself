@@ -7,25 +7,32 @@ namespace CodeYourself.Controllers
 {
     public sealed class GameController : IDisposable
     {
-        private const int SubTicksPerCommandTick = 30;
+        private const int SimulationTicksPerCommand = 30;
         private readonly Queue<GameCommand> _commandQueue = new Queue<GameCommand>();
 
         private readonly GameModel _model;
-        private readonly System.Windows.Forms.Timer _tickTimer;
+        private readonly System.Windows.Forms.Timer _commandTimer;
+
+        private int _remainingSimulationTicksForCommand;
+        private int _commandTickCount;
 
         public event Action GameUpdated; // событие для перерисовки
+        public event Action LogicFrameCommitted; // логический кадр готов (для 60Hz рендера)
         public event Action<int> CurrentLineIndexChanged;
 
         public int CurrentLineIndex { get; private set; } = -1;
-        public bool IsRunning => _tickTimer.Enabled;
+        public bool IsRunning => _commandTimer.Enabled;
+        public int CommandTickCount => _commandTickCount;
 
         public GameController(GameModel model)
         {
             _model = model;
 
-            _tickTimer = new System.Windows.Forms.Timer();
-            _tickTimer.Interval = 1000; // 1 тик/сек: 1 команда/сек, но симуляция будет в под-тиках
-            _tickTimer.Tick += TickTimer_Tick;
+            _commandTimer = new System.Windows.Forms.Timer();
+            // Чем меньше интервал, тем быстрее прогоняются сим-такты и команды.
+            // WinForms Timer всё равно квантуется ОС, но это убирает секундную паузу.
+            _commandTimer.Interval = 1;
+            _commandTimer.Tick += CommandTimer_Tick;
         }
 
         public void Start()
@@ -33,12 +40,17 @@ namespace CodeYourself.Controllers
             if (_commandQueue.Count == 0)
                 return;
 
-            _tickTimer.Start();
+            _remainingSimulationTicksForCommand = 0;
+            _commandTickCount = 0;
+
+            _commandTimer.Start();
         }
 
         public void Stop()
         {
-            _tickTimer.Stop();
+            _commandTimer.Stop();
+
+            _remainingSimulationTicksForCommand = 0;
             SetCurrentLineIndex(-1);
         }
 
@@ -53,36 +65,38 @@ namespace CodeYourself.Controllers
             _commandQueue.Clear();
         }
 
-        private void TickTimer_Tick(object sender, EventArgs e)
+        private void CommandTimer_Tick(object sender, EventArgs e)
         {
-            _model.BeginCommandTick(SubTicksPerCommandTick);
-
-            if (_commandQueue.Count == 0)
-            {
-                Stop();
-                GameUpdated?.Invoke();
-                return;
-            }
-
-            if (_commandQueue.Count > 0)
-            {
-                var command = _commandQueue.Dequeue();
-                SetCurrentLineIndex(command.LineIndex);
-                command.Execute(_model);
-            }
-
-            for (int i = 0; i < SubTicksPerCommandTick; i++)
-                _model.StepSubTick();
-            _model.EndCommandTick();
-
             if (_model.IsGameOver)
             {
                 Stop();
-                GameUpdated?.Invoke();
+                GameUpdated?.Invoke(); // финальная перерисовка
                 return;
             }
 
-            GameUpdated?.Invoke(); // говорим View, что нужно перерисоваться
+            // 1) Если идёт симуляция текущей команды — делаем один сим-так (без real-time ожидания 33ms).
+            if (_remainingSimulationTicksForCommand > 0)
+            {
+                _model.StepSimulationTick();
+                _remainingSimulationTicksForCommand--;
+                LogicFrameCommitted?.Invoke();
+                return;
+            }
+
+            // 2) Команда закончилась — берем следующую.
+            if (_commandQueue.Count == 0)
+            {
+                Stop();
+                GameUpdated?.Invoke(); // финальная перерисовка
+                return;
+            }
+
+            var command = _commandQueue.Dequeue();
+            _commandTickCount++;
+
+            SetCurrentLineIndex(command.LineIndex);
+            command.Execute(_model);
+            _remainingSimulationTicksForCommand = SimulationTicksPerCommand;
         }
 
         public GameModel Model => _model;
@@ -99,8 +113,8 @@ namespace CodeYourself.Controllers
         public void Dispose()
         {
             Stop();
-            _tickTimer.Tick -= TickTimer_Tick;
-            _tickTimer.Dispose();
+            _commandTimer.Tick -= CommandTimer_Tick;
+            _commandTimer.Dispose();
         }
     }
 }

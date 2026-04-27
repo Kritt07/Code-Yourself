@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Diagnostics;
 using CodeYourself.Controllers;
 using CodeYourself.Models;
 using CodeYourself.Parsing;
@@ -16,6 +17,15 @@ namespace CodeYourself
 {
     public partial class GameForm : Form
     {
+        private sealed class DoubleBufferedPanel : Panel
+        {
+            public DoubleBufferedPanel()
+            {
+                DoubleBuffered = true;
+                ResizeRedraw = true;
+            }
+        }
+
         private GameController _controller;
         private GameModel _model;
         private Panel _gamePanel;     // правое игровое поле
@@ -23,6 +33,15 @@ namespace CodeYourself
         private SplitContainer _splitContainer;
         private bool _splitterTouchedByUser;
         private readonly CommandParser _parser = new CommandParser();
+
+        private readonly Timer _renderTimer = new Timer();
+        private GameModel.RenderSnapshot _prevSnapshot;
+        private GameModel.RenderSnapshot _currSnapshot;
+        private long _lastCommitTimestamp;
+        private double _lastCommitIntervalSeconds = 1.0 / 30.0;
+        private readonly Font _hudFont = new Font("Consolas", 10);
+        private readonly Font _playerLabelFont = new Font("Arial", 12, FontStyle.Bold);
+        private readonly Font _gameOverFont = new Font("Arial", 18, FontStyle.Bold);
 
         public GameForm(GameModel model, GameController controller)
         {
@@ -32,6 +51,15 @@ namespace CodeYourself
             SetupLevel();
             _controller.GameUpdated += Controller_GameUpdated;
             _controller.CurrentLineIndexChanged += Controller_CurrentLineIndexChanged;
+            _controller.LogicFrameCommitted += Controller_LogicFrameCommitted;
+
+            _prevSnapshot = _model.CreateRenderSnapshot();
+            _currSnapshot = _prevSnapshot;
+            _lastCommitTimestamp = Stopwatch.GetTimestamp();
+
+            _renderTimer.Interval = 16; // ~60Hz
+            _renderTimer.Tick += RenderTimer_Tick;
+            _renderTimer.Start();
 
             FormClosed += GameForm_FormClosed;
         }
@@ -73,15 +101,45 @@ namespace CodeYourself
                 _gamePanel.Invalidate();
         }
 
+        private void RenderTimer_Tick(object sender, EventArgs e)
+        {
+            if (IsDisposed || _gamePanel == null || _gamePanel.IsDisposed)
+                return;
+
+            _gamePanel.Invalidate();
+        }
+
+        private void Controller_LogicFrameCommitted()
+        {
+            var now = Stopwatch.GetTimestamp();
+            var dt = (now - _lastCommitTimestamp) / (double)Stopwatch.Frequency;
+            if (dt > 0)
+                _lastCommitIntervalSeconds = dt;
+
+            _lastCommitTimestamp = now;
+
+            _prevSnapshot = _currSnapshot ?? _model.CreateRenderSnapshot();
+            _currSnapshot = _model.CreateRenderSnapshot();
+        }
+
         private void GameForm_FormClosed(object sender, FormClosedEventArgs e)
         {
             if (_controller != null)
             {
                 _controller.GameUpdated -= Controller_GameUpdated;
                 _controller.CurrentLineIndexChanged -= Controller_CurrentLineIndexChanged;
+                _controller.LogicFrameCommitted -= Controller_LogicFrameCommitted;
                 _controller.Dispose();
                 _controller = null;
             }
+
+            _renderTimer.Tick -= RenderTimer_Tick;
+            _renderTimer.Stop();
+            _renderTimer.Dispose();
+
+            _hudFont.Dispose();
+            _playerLabelFont.Dispose();
+            _gameOverFont.Dispose();
         }
 
         private void SetupUI()
@@ -89,6 +147,7 @@ namespace CodeYourself
             this.Text = "Code Yourself - Неделя 3";
             this.Size = new Size(1400, 650);           // комфортный стартовый размер
             this.MinimumSize = new Size(1350, 600);    // теперь канвас 800px точно помещается в правую панель (60%)
+            this.DoubleBuffered = true;
 
             _splitContainer = new SplitContainer
             {
@@ -122,7 +181,7 @@ namespace CodeYourself
             leftPanel.Controls.Add(_codeEditor);
 
             // ПРАВАЯ ЧАСТЬ 
-            _gamePanel = new Panel
+            _gamePanel = new DoubleBufferedPanel
             {
                 Dock = DockStyle.Fill,
                 BackColor = Color.FromArgb(45, 45, 55)
@@ -191,6 +250,9 @@ namespace CodeYourself
             _model.Reset();
             SetupLevel();
             _codeEditor.ReadOnly = false;
+            _prevSnapshot = _model.CreateRenderSnapshot();
+            _currSnapshot = _prevSnapshot;
+            _lastCommitTimestamp = Stopwatch.GetTimestamp();
             _gamePanel.Invalidate();
         }
 
@@ -218,7 +280,15 @@ namespace CodeYourself
         private void GamePanel_Paint(object sender, PaintEventArgs e)
         {
             var g = e.Graphics;
-            var player = _model.Player;
+            var now = Stopwatch.GetTimestamp();
+            var elapsedSeconds = (now - _lastCommitTimestamp) / (double)Stopwatch.Frequency;
+            var denomSeconds = Math.Max(0.0001, _lastCommitIntervalSeconds);
+            var alpha = Clamp01(elapsedSeconds / denomSeconds);
+
+            var prev = _prevSnapshot ?? _model.CreateRenderSnapshot();
+            var curr = _currSnapshot ?? prev;
+
+            var playerRect = LerpRect(prev.PlayerBounds, curr.PlayerBounds, alpha);
 
             // === Центрируем виртуальное поле внутри _gamePanel ===
             int offsetX = (_gamePanel.Width - GameModel.CanvasWidth) / 2;
@@ -233,48 +303,60 @@ namespace CodeYourself
                             GameModel.CanvasWidth, GameModel.GroundHeight);
 
             // Препятствия
-            foreach (var obstacle in _model.Obstacles)
+            var prevObs = prev.Obstacles ?? Array.Empty<GameModel.ObstacleSnapshot>();
+            var currObs = curr.Obstacles ?? prevObs;
+            var count = Math.Min(prevObs.Length, currObs.Length);
+
+            for (int i = 0; i < count; i++)
             {
                 Brush brush = Brushes.OrangeRed;
-                if (obstacle.Kind == ObstacleKind.MovingPlatform)
+                if (currObs[i].Kind == ObstacleKind.MovingPlatform)
                     brush = Brushes.SteelBlue;
 
-                var r = obstacle.Bounds;
+                var r = LerpRect(prevObs[i].Bounds, currObs[i].Bounds, alpha);
                 g.FillRectangle(brush, r.X, r.Y, r.Width, r.Height);
             }
 
             // Персонаж
             g.FillRectangle(Brushes.LimeGreen, 
-                            player.Position.X, 
-                            player.Position.Y, 
-                            player.Size, player.Size);
+                            playerRect.X, 
+                            playerRect.Y, 
+                            playerRect.Width, playerRect.Height);
 
             // Подпись Player
-            using (var font = new Font("Arial", 12, FontStyle.Bold))
-                g.DrawString("Player", font, Brushes.White,
-                             player.Position.X + 8, player.Position.Y - 25);
+            g.DrawString("Player", _playerLabelFont, Brushes.White, playerRect.X + 8, playerRect.Y - 25);
 
-            // Отладка
-            using (var font = new Font("Consolas", 10))
-                g.DrawString($"Tick: {_model.TickCount} | Canvas: {GameModel.CanvasWidth}x{GameModel.CanvasHeight}", 
-                             font, Brushes.Yellow, 20, 20);
-
-            if (_model.IsGameOver)
+            if (curr.IsGameOver)
             {
-                using (var font = new Font("Arial", 18, FontStyle.Bold))
-                {
-                    g.DrawString("GAME OVER", font, Brushes.Red, 20, 50);
-                }
+                g.DrawString("GAME OVER", _gameOverFont, Brushes.Red, 20, 50);
 
-                if (!string.IsNullOrWhiteSpace(_model.GameOverReason))
+                if (!string.IsNullOrWhiteSpace(curr.GameOverReason))
                 {
-                    using (var font = new Font("Consolas", 10))
-                        g.DrawString(_model.GameOverReason, font, Brushes.White, 20, 80);
+                    g.DrawString(curr.GameOverReason, _hudFont, Brushes.White, 20, 80);
                 }
             }
 
             // Сбрасываем трансформацию (чтобы кнопки не сдвинулись)
             g.ResetTransform();
+
+            // HUD (в экранных координатах, чтобы не "дёргался" от трансформаций/центровки).
+            g.DrawString($"CommandTick: {_controller.CommandTickCount}", _hudFont, Brushes.Yellow, 10, 10);
+        }
+
+        private static Rectangle LerpRect(Rectangle a, Rectangle b, double t)
+        {
+            var x = (int)Math.Round(a.X + (b.X - a.X) * t);
+            var y = (int)Math.Round(a.Y + (b.Y - a.Y) * t);
+            var w = (int)Math.Round(a.Width + (b.Width - a.Width) * t);
+            var h = (int)Math.Round(a.Height + (b.Height - a.Height) * t);
+            return new Rectangle(x, y, w, h);
+        }
+
+        private static double Clamp01(double x)
+        {
+            if (x < 0) return 0;
+            if (x > 1) return 1;
+            return x;
         }
     }
 }

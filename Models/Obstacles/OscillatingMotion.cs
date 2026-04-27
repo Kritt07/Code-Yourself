@@ -4,7 +4,7 @@ namespace CodeYourself.Models.Obstacles
 {
     internal static class OscillatingMotion
     {
-        public const int DefaultSubTicksPerCommandTick = 30;
+        public const int DefaultSimulationTicksPerCommand = 30;
 
         /// <summary>
         /// Детерминированное движение туда-обратно по X (командные тики):
@@ -40,14 +40,14 @@ namespace CodeYourself.Models.Obstacles
         }
 
         /// <summary>
-        /// Детерминированное движение туда-обратно по X на под-тиках.
-        /// Интерпретирует <paramref name="stepPerCommandTick"/> как дистанцию за 1 командный тик,
-        /// а <paramref name="simTickIndex"/> — как индекс под-тика.
+        /// Детерминированное движение туда-обратно по X на сим-тактах.
+        /// Интерпретирует <paramref name="stepPerCommandTick"/> как дистанцию за 1 командный тик (1 сек),
+        /// а <paramref name="simTickIndex"/> — как индекс сим-тика (30 Гц).
         /// </summary>
-        public static int GetXForSubTick(int simTickIndex, int minX, int maxX, int stepPerCommandTick, int subTicksPerCommandTick = DefaultSubTicksPerCommandTick)
+        public static int GetXForSimTick(int simTickIndex, int minX, int maxX, int stepPerCommandTick, int simTicksPerCommand = DefaultSimulationTicksPerCommand)
         {
-            if (subTicksPerCommandTick <= 0)
-                throw new ArgumentOutOfRangeException(nameof(subTicksPerCommandTick), "subTicksPerCommandTick must be positive.");
+            if (simTicksPerCommand <= 0)
+                throw new ArgumentOutOfRangeException(nameof(simTicksPerCommand), "simTicksPerCommand must be positive.");
 
             if (stepPerCommandTick <= 0)
                 throw new ArgumentOutOfRangeException(nameof(stepPerCommandTick), "stepPerCommandTick must be positive.");
@@ -63,8 +63,8 @@ namespace CodeYourself.Models.Obstacles
             if (range == 0)
                 return minX;
 
-            var stepPerSubTick = stepPerCommandTick / (double)subTicksPerCommandTick;
-            var distance = simTickIndex * stepPerSubTick;
+            var stepPerSimTick = stepPerCommandTick / (double)simTicksPerCommand;
+            var distance = simTickIndex * stepPerSimTick;
 
             var periodDistance = 2.0 * range;
             var m = distance % periodDistance;
