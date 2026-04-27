@@ -7,7 +7,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Diagnostics;
 using CodeYourself.Controllers;
 using CodeYourself.Models;
 using CodeYourself.Parsing;
@@ -34,14 +33,10 @@ namespace CodeYourself
         private bool _splitterTouchedByUser;
         private readonly CommandParser _parser = new CommandParser();
 
+        // Оставляем отрисовку простой и предсказуемой (как в предыдущей реализации),
+        // но возвращаем render tick (~60Hz) для плавной перерисовки.
         private readonly Timer _renderTimer = new Timer();
-        private GameModel.RenderSnapshot _prevSnapshot;
-        private GameModel.RenderSnapshot _currSnapshot;
-        private long _lastCommitTimestamp;
-        private double _lastCommitIntervalSeconds = 1.0 / 30.0;
-        private readonly Font _hudFont = new Font("Consolas", 10);
-        private readonly Font _playerLabelFont = new Font("Arial", 12, FontStyle.Bold);
-        private readonly Font _gameOverFont = new Font("Arial", 18, FontStyle.Bold);
+        private long _renderTickCount;
 
         public GameForm(GameModel model, GameController controller)
         {
@@ -51,11 +46,6 @@ namespace CodeYourself
             SetupLevel();
             _controller.GameUpdated += Controller_GameUpdated;
             _controller.CurrentLineIndexChanged += Controller_CurrentLineIndexChanged;
-            _controller.LogicFrameCommitted += Controller_LogicFrameCommitted;
-
-            _prevSnapshot = _model.CreateRenderSnapshot();
-            _currSnapshot = _prevSnapshot;
-            _lastCommitTimestamp = Stopwatch.GetTimestamp();
 
             _renderTimer.Interval = 16; // ~60Hz
             _renderTimer.Tick += RenderTimer_Tick;
@@ -137,20 +127,8 @@ namespace CodeYourself
             if (IsDisposed || _gamePanel == null || _gamePanel.IsDisposed)
                 return;
 
+            _renderTickCount++;
             _gamePanel.Invalidate();
-        }
-
-        private void Controller_LogicFrameCommitted()
-        {
-            var now = Stopwatch.GetTimestamp();
-            var dt = (now - _lastCommitTimestamp) / (double)Stopwatch.Frequency;
-            if (dt > 0)
-                _lastCommitIntervalSeconds = dt;
-
-            _lastCommitTimestamp = now;
-
-            _prevSnapshot = _currSnapshot ?? _model.CreateRenderSnapshot();
-            _currSnapshot = _model.CreateRenderSnapshot();
         }
 
         private void GameForm_FormClosed(object sender, FormClosedEventArgs e)
@@ -159,7 +137,6 @@ namespace CodeYourself
             {
                 _controller.GameUpdated -= Controller_GameUpdated;
                 _controller.CurrentLineIndexChanged -= Controller_CurrentLineIndexChanged;
-                _controller.LogicFrameCommitted -= Controller_LogicFrameCommitted;
                 _controller.Dispose();
                 _controller = null;
             }
@@ -167,10 +144,6 @@ namespace CodeYourself
             _renderTimer.Tick -= RenderTimer_Tick;
             _renderTimer.Stop();
             _renderTimer.Dispose();
-
-            _hudFont.Dispose();
-            _playerLabelFont.Dispose();
-            _gameOverFont.Dispose();
         }
 
         private void SetupUI()
@@ -281,9 +254,6 @@ namespace CodeYourself
             _model.Reset();
             SetupLevel();
             _codeEditor.ReadOnly = false;
-            _prevSnapshot = _model.CreateRenderSnapshot();
-            _currSnapshot = _prevSnapshot;
-            _lastCommitTimestamp = Stopwatch.GetTimestamp();
             _gamePanel.Invalidate();
         }
 
@@ -311,21 +281,11 @@ namespace CodeYourself
         private void GamePanel_Paint(object sender, PaintEventArgs e)
         {
             var g = e.Graphics;
-            var now = Stopwatch.GetTimestamp();
-            var elapsedSeconds = (now - _lastCommitTimestamp) / (double)Stopwatch.Frequency;
-            var denomSeconds = Math.Max(0.0001, _lastCommitIntervalSeconds);
-            var alpha = Clamp01(elapsedSeconds / denomSeconds);
-
-            var prev = _prevSnapshot ?? _model.CreateRenderSnapshot();
-            var curr = _currSnapshot ?? prev;
-
-            var playerRect = LerpRect(prev.PlayerBounds, curr.PlayerBounds, alpha);
+            var player = _model.Player;
 
             // === Центрируем виртуальное поле внутри _gamePanel ===
-            // Если панель меньше виртуального поля (например, из-за сплиттера) — не уходим в отрицательные смещения,
-            // иначе часть канваса будет "уезжать" и визуально это выглядит как неверное центрирование.
-            int offsetX = Math.Max(0, (_gamePanel.Width - GameModel.CanvasWidth) / 2);
-            int offsetY = Math.Max(0, (_gamePanel.Height - GameModel.CanvasHeight) / 2);
+            int offsetX = (_gamePanel.Width - GameModel.CanvasWidth) / 2;
+            int offsetY = (_gamePanel.Height - GameModel.CanvasHeight) / 2;
 
             // Смещаем систему координат
             g.TranslateTransform(offsetX, offsetY);
@@ -336,62 +296,52 @@ namespace CodeYourself
                             GameModel.CanvasWidth, GameModel.GroundHeight);
 
             // Препятствия
-            var prevObs = prev.Obstacles ?? Array.Empty<GameModel.ObstacleSnapshot>();
-            var currObs = curr.Obstacles ?? prevObs;
-            var count = Math.Min(prevObs.Length, currObs.Length);
-
-            for (int i = 0; i < count; i++)
+            foreach (var obstacle in _model.Obstacles)
             {
                 Brush brush = Brushes.OrangeRed;
-                if (currObs[i].Kind == ObstacleKind.MovingPlatform || currObs[i].Kind == ObstacleKind.StaticPlatform)
+                if (obstacle.Kind == ObstacleKind.MovingPlatform || obstacle.Kind == ObstacleKind.StaticPlatform)
                     brush = Brushes.SteelBlue;
-                else if (currObs[i].Kind == ObstacleKind.Spikes)
-                    brush = Brushes.Crimson;
 
-                var r = LerpRect(prevObs[i].Bounds, currObs[i].Bounds, alpha);
+                var r = obstacle.Bounds;
                 g.FillRectangle(brush, r.X, r.Y, r.Width, r.Height);
             }
 
             // Персонаж
             g.FillRectangle(Brushes.LimeGreen, 
-                            playerRect.X, 
-                            playerRect.Y, 
-                            playerRect.Width, playerRect.Height);
+                            player.Position.X, 
+                            player.Position.Y, 
+                            player.Size, player.Size);
 
             // Подпись Player
-            g.DrawString("Player", _playerLabelFont, Brushes.White, playerRect.X + 8, playerRect.Y - 25);
+            using (var font = new Font("Arial", 12, FontStyle.Bold))
+                g.DrawString("Player", font, Brushes.White,
+                             player.Position.X + 8, player.Position.Y - 25);
 
-            if (curr.IsGameOver)
+            // Отладка (явно разделяем командные и симуляционные тики)
+            using (var font = new Font("Consolas", 10))
+                g.DrawString($"CommandTick: {_controller.CommandTickCount} | SimTick: {_model.SimTickCount} | RenderTick: {_renderTickCount} | Canvas: {GameModel.CanvasWidth}x{GameModel.CanvasHeight}",
+                             font, Brushes.Yellow, 20, 20);
+
+            if (_model.IsGameOver)
             {
-                g.DrawString("GAME OVER", _gameOverFont, Brushes.Red, 20, 50);
-
-                if (!string.IsNullOrWhiteSpace(curr.GameOverReason))
+                using (var font = new Font("Arial", 18, FontStyle.Bold))
                 {
-                    g.DrawString(curr.GameOverReason, _hudFont, Brushes.White, 20, 80);
+                    g.DrawString("GAME OVER", font, Brushes.Red, 20, 50);
+                }
+
+                if (!string.IsNullOrWhiteSpace(_model.GameOverReason))
+                {
+                    using (var font = new Font("Consolas", 10))
+                        g.DrawString(_model.GameOverReason, font, Brushes.White, 20, 80);
                 }
             }
 
             // Сбрасываем трансформацию (чтобы кнопки не сдвинулись)
             g.ResetTransform();
 
-            // HUD (в экранных координатах, чтобы не "дёргался" от трансформаций/центровки).
-            g.DrawString($"CommandTick: {_controller.CommandTickCount}", _hudFont, Brushes.Yellow, 10, 10);
-        }
-
-        private static Rectangle LerpRect(Rectangle a, Rectangle b, double t)
-        {
-            var x = (int)Math.Round(a.X + (b.X - a.X) * t);
-            var y = (int)Math.Round(a.Y + (b.Y - a.Y) * t);
-            var w = (int)Math.Round(a.Width + (b.Width - a.Width) * t);
-            var h = (int)Math.Round(a.Height + (b.Height - a.Height) * t);
-            return new Rectangle(x, y, w, h);
-        }
-
-        private static double Clamp01(double x)
-        {
-            if (x < 0) return 0;
-            if (x > 1) return 1;
-            return x;
+            // Командные тики (1 тик = 1 команда), в экранных координатах.
+            using (var font = new Font("Consolas", 10))
+                g.DrawString($"CommandTick: {_controller.CommandTickCount} | RenderTick: {_renderTickCount}", font, Brushes.Yellow, 10, 10);
         }
     }
 }
