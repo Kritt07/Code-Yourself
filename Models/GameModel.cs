@@ -286,9 +286,12 @@ namespace CodeYourself.Models
             var groundY = GroundY - Player.Size;
             var baseY = Math.Min(Player.Position.Y, groundY);
 
-            // Пытаемся "приземлиться" на платформу, если она достижима по высоте прыжка.
-            // Выбираем самую высокую (минимальный Y) из достижимых.
-            var bestY = baseY;
+            // Ищем целевую высоту приземления в точке newX.
+            // Правила:
+            // - если есть платформы выше/на уровне baseY и достижимые по высоте прыжка (<= jumpHeight) — садимся на самую высокую;
+            // - иначе "падаем" вниз на ближайшую платформу под игроком (по newX), либо на землю.
+            int? bestReachableUpY = null; // standY (меньше = выше)
+            int? bestBelowY = null;       // standY (меньше = ближе к игроку сверху, но всё равно ниже baseY)
             var playerRectAtX = new Rectangle(newX, 0, Player.Size, Player.Size);
 
             foreach (var obstacle in _obstacles)
@@ -297,23 +300,50 @@ namespace CodeYourself.Models
                     continue;
 
                 var r = obstacle.Bounds;
-                playerRectAtX.Y = r.Top - Player.Size; // позиция стояния на платформе
+                var standY = r.Top - Player.Size; // позиция стояния на платформе
+                playerRectAtX.Y = standY;
 
-                // Должны перекрываться по X, и платформа должна быть выше/на уровне baseY,
-                // но не выше, чем позволяет прыжок.
-                var standY = r.Top - Player.Size;
-                var reachable = standY <= baseY && (baseY - standY) <= jumpHeight;
+                // Должны перекрываться по X.
                 var overlapsX = playerRectAtX.Right > r.Left && playerRectAtX.Left < r.Right;
+                if (!overlapsX)
+                    continue;
 
-                if (reachable && overlapsX && standY < bestY)
-                    bestY = standY;
+                // Вариант 1: достижимо вверх/вровень (высота прыжка ограничена jumpHeight).
+                var reachableUp = standY <= baseY && (baseY - standY) <= jumpHeight;
+                if (reachableUp)
+                {
+                    if (bestReachableUpY == null || standY < bestReachableUpY.Value)
+                        bestReachableUpY = standY;
+                    continue;
+                }
+
+                // Вариант 2: платформа ниже — значит в неё можно "упасть" (ближайшая снизу).
+                if (standY > baseY)
+                {
+                    if (bestBelowY == null || standY < bestBelowY.Value)
+                        bestBelowY = standY;
+                }
             }
 
-            // Итоговая Y: либо "на платформе", либо остаёмся на прежней высоте, но в пределах канваса.
-            var newY = Math.Max(0, Math.Min(groundY, bestY));
+            int targetY;
+            if (bestReachableUpY != null)
+                targetY = bestReachableUpY.Value;
+            else if (bestBelowY != null)
+                targetY = bestBelowY.Value;
+            else
+                targetY = groundY;
+
+            // Итоговая Y всегда в пределах канваса.
+            var newY = Math.Max(0, Math.Min(groundY, targetY));
 
             _pendingMoveDx = 0;
             _pendingMoveSimTicksLeft = 0;
+
+            // Фиксируем высоту прыжка относительно старта: пик должен быть ровно на jumpHeight выше стартовой точки.
+            // В текущей формуле дуги используется линия между Start и End, поэтому "эффективную" высоту дуги
+            // корректируем так, чтобы midpoint приходился на (StartY - jumpHeight).
+            var effectivePeakHeight = (int)Math.Round(jumpHeight + (newY - Player.Position.Y) / 2.0);
+            effectivePeakHeight = Math.Max(0, effectivePeakHeight);
 
             _jump = new JumpState
             {
@@ -322,7 +352,7 @@ namespace CodeYourself.Models
                 SubTickIndex = 0,
                 Start = new Point(Player.Position.X, Player.Position.Y),
                 End = new Point(newX, newY),
-                PeakHeight = jumpHeight
+                PeakHeight = effectivePeakHeight
             };
         }
 
