@@ -53,6 +53,9 @@
     <Compile Include="Controllers\GameController.cs" />
     <Compile Include="Models\Player.cs" />
     <Compile Include="Models\Obstacles\IObstacle.cs" />
+    <Compile Include="Models\Obstacles\MovingSpikesObstacle.cs" />
+    <Compile Include="Models\Obstacles\SpikesObstacle.cs" />
+    <Compile Include="Models\Obstacles\StaticPlatformObstacle.cs" />
     <Compile Include="Models\Obstacles\MovingPlatformObstacle.cs" />
     <Compile Include="Models\Obstacles\OscillatingMotion.cs" />
     <Compile Include="Models\Obstacles\SawObstacle.cs" />

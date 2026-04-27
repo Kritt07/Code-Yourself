@@ -77,14 +77,45 @@ namespace CodeYourself
                 size: 50,
                 stepPerTick: 50));
 
-            // Платформа: чуть выше земли, ходит туда-обратно.
+            // Платформа (слева): чуть выше земли, ходит туда-обратно.
+            const int movingPlatformMinX = 0;
+            const int movingPlatformMaxX = 280;
+            const int movingPlatformY = GameModel.GroundY - 120;
+            const int movingPlatformWidth = 150;
+            const int movingPlatformHeight = 20;
+            const int movingPlatformStepPerTick = 50;
+
             _model.AddObstacle(new MovingPlatformObstacle(
-                minX: 100,
-                maxX: 650,
-                y: GameModel.GroundY - 120,
-                width: 150,
-                height: 20,
-                stepPerTick: 50));
+                minX: movingPlatformMinX,
+                maxX: movingPlatformMaxX,
+                y: movingPlatformY,
+                width: movingPlatformWidth,
+                height: movingPlatformHeight,
+                stepPerTick: movingPlatformStepPerTick));
+
+            // Статическая платформа (слева над игроком): твёрдая сверху.
+            _model.AddObstacle(new StaticPlatformObstacle(
+                x: 0,
+                y: GameModel.GroundY - 230,
+                width: 220,
+                height: 20));
+
+            // Шипы на земле: смертельны при любом пересечении.
+            _model.AddObstacle(new SpikesObstacle(
+                x: 620,
+                y: GameModel.GroundY - 18,
+                width: 120,
+                height: 18));
+
+            // Шипы на движущейся платформе (слева): "приклеены" к ней по X.
+            _model.AddObstacle(new MovingSpikesObstacle(
+                minX: movingPlatformMinX,
+                maxX: movingPlatformMaxX,
+                y: movingPlatformY - 18,
+                width: 80,
+                height: 18,
+                stepPerTick: movingPlatformStepPerTick,
+                xOffset: 60));
         }
 
         private void Controller_CurrentLineIndexChanged(int lineIndex)
@@ -291,8 +322,10 @@ namespace CodeYourself
             var playerRect = LerpRect(prev.PlayerBounds, curr.PlayerBounds, alpha);
 
             // === Центрируем виртуальное поле внутри _gamePanel ===
-            int offsetX = (_gamePanel.Width - GameModel.CanvasWidth) / 2;
-            int offsetY = (_gamePanel.Height - GameModel.CanvasHeight) / 2;
+            // Если панель меньше виртуального поля (например, из-за сплиттера) — не уходим в отрицательные смещения,
+            // иначе часть канваса будет "уезжать" и визуально это выглядит как неверное центрирование.
+            int offsetX = Math.Max(0, (_gamePanel.Width - GameModel.CanvasWidth) / 2);
+            int offsetY = Math.Max(0, (_gamePanel.Height - GameModel.CanvasHeight) / 2);
 
             // Смещаем систему координат
             g.TranslateTransform(offsetX, offsetY);
@@ -310,8 +343,10 @@ namespace CodeYourself
             for (int i = 0; i < count; i++)
             {
                 Brush brush = Brushes.OrangeRed;
-                if (currObs[i].Kind == ObstacleKind.MovingPlatform)
+                if (currObs[i].Kind == ObstacleKind.MovingPlatform || currObs[i].Kind == ObstacleKind.StaticPlatform)
                     brush = Brushes.SteelBlue;
+                else if (currObs[i].Kind == ObstacleKind.Spikes)
+                    brush = Brushes.Crimson;
 
                 var r = LerpRect(prevObs[i].Bounds, currObs[i].Bounds, alpha);
                 g.FillRectangle(brush, r.X, r.Y, r.Width, r.Height);

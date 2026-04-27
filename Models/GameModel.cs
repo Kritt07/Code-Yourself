@@ -143,27 +143,30 @@ namespace CodeYourself.Models
 
             foreach (var obstacle in _obstacles)
             {
-                if (obstacle.Kind != ObstacleKind.MovingPlatform)
+                if (obstacle.Kind != ObstacleKind.MovingPlatform && obstacle.Kind != ObstacleKind.StaticPlatform)
                     continue;
 
                 var prevObs = _obstaclePrevBounds.TryGetValue(obstacle, out var p) ? p : obstacle.Bounds;
                 var currObs = obstacle.Bounds;
 
-                // Если игрок стоял на платформе в прошлом тике — едем вместе с ней.
-                var wasStandingOnTop =
-                    prevPlayer.Bottom == prevObs.Top &&
-                    prevPlayer.Right > prevObs.Left &&
-                    prevPlayer.Left < prevObs.Right;
-
-                if (wasStandingOnTop)
+                // Если игрок стоял на платформе в прошлом тике — едем вместе с ней (только для движущейся).
+                if (obstacle.Kind == ObstacleKind.MovingPlatform)
                 {
-                    var platformDx = currObs.X - prevObs.X;
-                    if (platformDx != 0)
+                    var wasStandingOnTop =
+                        prevPlayer.Bottom == prevObs.Top &&
+                        prevPlayer.Right > prevObs.Left &&
+                        prevPlayer.Left < prevObs.Right;
+
+                    if (wasStandingOnTop)
                     {
-                        var newX = Player.Position.X + platformDx;
-                        newX = Math.Max(0, Math.Min(CanvasWidth - Player.Size, newX));
-                        Player.SetPosition(newX, Player.Position.Y);
-                        currPlayer = GetPlayerBounds();
+                        var platformDx = currObs.X - prevObs.X;
+                        if (platformDx != 0)
+                        {
+                            var newX = Player.Position.X + platformDx;
+                            newX = Math.Max(0, Math.Min(CanvasWidth - Player.Size, newX));
+                            Player.SetPosition(newX, Player.Position.Y);
+                            currPlayer = GetPlayerBounds();
+                        }
                     }
                 }
 
@@ -180,7 +183,7 @@ namespace CodeYourself.Models
 
             foreach (var obstacle in _obstacles)
             {
-                if (obstacle.Kind != ObstacleKind.Saw)
+                if (obstacle.Kind != ObstacleKind.Saw && obstacle.Kind != ObstacleKind.Spikes)
                     continue;
 
                 var prevObs = _obstaclePrevBounds.TryGetValue(obstacle, out var p) ? p : obstacle.Bounds;
@@ -290,7 +293,7 @@ namespace CodeYourself.Models
 
             foreach (var obstacle in _obstacles)
             {
-                if (obstacle.Kind != ObstacleKind.MovingPlatform)
+                if (obstacle.Kind != ObstacleKind.MovingPlatform && obstacle.Kind != ObstacleKind.StaticPlatform)
                     continue;
 
                 var r = obstacle.Bounds;

@@ -5,7 +5,9 @@ namespace CodeYourself.Models.Obstacles
     public enum ObstacleKind
     {
         Saw,
-        MovingPlatform
+        MovingPlatform,
+        StaticPlatform,
+        Spikes
     }
 
     public interface IObstacle
