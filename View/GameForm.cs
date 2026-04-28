@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using CodeYourself.Controllers;
+using CodeYourself.Levels;
 using CodeYourself.Models;
 using CodeYourself.Parsing;
 using CodeYourself.Models.Obstacles;
@@ -37,13 +38,14 @@ namespace CodeYourself
         // но возвращаем render tick (~60Hz) для плавной перерисовки.
         private readonly Timer _renderTimer = new Timer();
         private long _renderTickCount;
+        private readonly IGameLevel _level = new Week3Level();
 
         public GameForm(GameModel model, GameController controller)
         {
             _controller = controller;
             _model = model; 
             SetupUI();
-            SetupLevel();
+            ApplyLevel();
             _controller.GameUpdated += Controller_GameUpdated;
             _controller.CurrentLineIndexChanged += Controller_CurrentLineIndexChanged;
 
@@ -54,58 +56,10 @@ namespace CodeYourself
             FormClosed += GameForm_FormClosed;
         }
 
-        private void SetupLevel()
+        private void ApplyLevel()
         {
-            // MVP препятствия для недели 3.
-            _model.ClearObstacles();
-
-            // Пила: по земле, ходит туда-обратно.
-            _model.AddObstacle(new SawObstacle(
-                minX: 250,
-                maxX: 550,
-                y: GameModel.GroundY - 35,
-                size: 35,
-                stepPerTick: 50));
-
-            // Платформа (слева): чуть выше земли, ходит туда-обратно.
-            const int movingPlatformMinX = 0;
-            const int movingPlatformMaxX = 280;
-            const int movingPlatformY = GameModel.GroundY - 120;
-            const int movingPlatformWidth = 150;
-            const int movingPlatformHeight = 20;
-            const int movingPlatformStepPerTick = 50;
-
-            _model.AddObstacle(new MovingPlatformObstacle(
-                minX: movingPlatformMinX,
-                maxX: movingPlatformMaxX,
-                y: movingPlatformY,
-                width: movingPlatformWidth,
-                height: movingPlatformHeight,
-                stepPerTick: movingPlatformStepPerTick));
-
-            // Статическая платформа (слева над игроком): твёрдая сверху.
-            _model.AddObstacle(new StaticPlatformObstacle(
-                x: 0,
-                y: GameModel.GroundY - 230,
-                width: 220,
-                height: 20));
-
-            // Шипы на земле: смертельны при любом пересечении.
-            _model.AddObstacle(new SpikesObstacle(
-                x: 620,
-                y: GameModel.GroundY - 18,
-                width: 120,
-                height: 18));
-
-            // Шипы на движущейся платформе (слева): "приклеены" к ней по X.
-            _model.AddObstacle(new MovingSpikesObstacle(
-                minX: movingPlatformMinX,
-                maxX: movingPlatformMaxX,
-                y: movingPlatformY - 18,
-                width: 80,
-                height: 18,
-                stepPerTick: movingPlatformStepPerTick,
-                xOffset: 60));
+            _level.Apply(_model);
+            Text = $"Code Yourself - {_level.Name}";
         }
 
         private void Controller_CurrentLineIndexChanged(int lineIndex)
@@ -120,6 +74,12 @@ namespace CodeYourself
         {
             if (!IsDisposed && _gamePanel != null && !_gamePanel.IsDisposed)
                 _gamePanel.Invalidate();
+
+            // Если выполнение остановилось (win/lose/конец команд) — возвращаем редактор в редактируемое состояние.
+            if (!IsDisposed && _codeEditor != null && !_codeEditor.IsDisposed && !_controller.IsRunning)
+            {
+                _codeEditor.ReadOnly = false;
+            }
         }
 
         private void RenderTimer_Tick(object sender, EventArgs e)
@@ -212,10 +172,6 @@ namespace CodeYourself
             btnRun.Click += (s, e) => RunProgram();
             btnPanel.Controls.Add(btnRun);
 
-            var btnReset = new Button { Text = "↺ Reset", Width = 100, Height = 35, Margin = new Padding(10) };
-            btnReset.Click += (s, e) => ResetGame();
-            btnPanel.Controls.Add(btnReset);
-
             Load += (s, e) =>
             {
                 if (!_splitterTouchedByUser)
@@ -232,6 +188,11 @@ namespace CodeYourself
             _controller.Stop();
             _controller.ClearCommands();
 
+            // Run всегда стартует "с начала": сбрасываем модель и заново применяем уровень.
+            _model.Reset();
+            ApplyLevel();
+            _gamePanel.Invalidate();
+
             var result = _parser.Parse(_codeEditor.Text);
             if (!result.IsSuccess)
             {
@@ -245,16 +206,6 @@ namespace CodeYourself
 
             _codeEditor.ReadOnly = true;
             _controller.Start();
-        }
-
-        private void ResetGame()
-        {
-            _controller.Stop();
-            _controller.ClearCommands();
-            _model.Reset();
-            SetupLevel();
-            _codeEditor.ReadOnly = false;
-            _gamePanel.Invalidate();
         }
 
         private void HighlightLine(int lineIndex)
@@ -295,22 +246,11 @@ namespace CodeYourself
                             0, GameModel.GroundY, 
                             GameModel.CanvasWidth, GameModel.GroundHeight);
 
-            // Препятствия
-            foreach (var obstacle in _model.Obstacles)
-            {
-                Brush brush = Brushes.OrangeRed;
-                if (obstacle.Kind == ObstacleKind.MovingPlatform || obstacle.Kind == ObstacleKind.StaticPlatform)
-                    brush = Brushes.SteelBlue;
-
-                var r = obstacle.Bounds;
-                g.FillRectangle(brush, r.X, r.Y, r.Width, r.Height);
-            }
+            DrawObstacles(g);
+            DrawFinish(g);
 
             // Персонаж
-            g.FillRectangle(Brushes.LimeGreen, 
-                            player.Position.X, 
-                            player.Position.Y, 
-                            player.Size, player.Size);
+            DrawPlayer(g, player);
 
             // Подпись Player
             using (var font = new Font("Arial", 12, FontStyle.Bold))
@@ -322,19 +262,7 @@ namespace CodeYourself
                 g.DrawString($"CommandTick: {_controller.CommandTickCount} | SimTick: {_model.SimTickCount} | RenderTick: {_renderTickCount} | Canvas: {GameModel.CanvasWidth}x{GameModel.CanvasHeight}",
                              font, Brushes.Yellow, 20, 20);
 
-            if (_model.IsGameOver)
-            {
-                using (var font = new Font("Arial", 18, FontStyle.Bold))
-                {
-                    g.DrawString("GAME OVER", font, Brushes.Red, 20, 50);
-                }
-
-                if (!string.IsNullOrWhiteSpace(_model.GameOverReason))
-                {
-                    using (var font = new Font("Consolas", 10))
-                        g.DrawString(_model.GameOverReason, font, Brushes.White, 20, 80);
-                }
-            }
+            DrawEndOverlay(g);
 
             // Сбрасываем трансформацию (чтобы кнопки не сдвинулись)
             g.ResetTransform();
@@ -342,6 +270,61 @@ namespace CodeYourself
             // Командные тики (1 тик = 1 команда), в экранных координатах.
             using (var font = new Font("Consolas", 10))
                 g.DrawString($"CommandTick: {_controller.CommandTickCount} | RenderTick: {_renderTickCount}", font, Brushes.Yellow, 10, 10);
+        }
+
+        private void DrawObstacles(Graphics g)
+        {
+            foreach (var obstacle in _model.Obstacles)
+            {
+                Brush brush = Brushes.OrangeRed;
+                if (obstacle.Kind == ObstacleKind.MovingPlatform || obstacle.Kind == ObstacleKind.StaticPlatform)
+                    brush = Brushes.SteelBlue;
+
+                var r = obstacle.Bounds;
+                g.FillRectangle(brush, r.X, r.Y, r.Width, r.Height);
+            }
+        }
+
+        private void DrawFinish(Graphics g)
+        {
+            if (!_model.FinishZone.HasValue)
+                return;
+
+            var r = _model.FinishZone.Value;
+            using (var fill = new SolidBrush(Color.FromArgb(90, 120, 200, 255)))
+                g.FillRectangle(fill, r);
+            using (var pen = new Pen(Color.FromArgb(220, 120, 200, 255), 3))
+                g.DrawRectangle(pen, r);
+            using (var font = new Font("Arial", 10, FontStyle.Bold))
+                g.DrawString("EXIT", font, Brushes.White, r.X - 8, r.Y - 18);
+        }
+
+        private static void DrawPlayer(Graphics g, Player player)
+        {
+            g.FillRectangle(Brushes.LimeGreen,
+                player.Position.X,
+                player.Position.Y,
+                player.Size,
+                player.Size);
+        }
+
+        private void DrawEndOverlay(Graphics g)
+        {
+            if (_model.EndState == GameEndState.Running)
+                return;
+
+            using (var font = new Font("Arial", 18, FontStyle.Bold))
+            {
+                var text = _model.EndState == GameEndState.Won ? "YOU WIN" : "GAME OVER";
+                var brush = _model.EndState == GameEndState.Won ? Brushes.LawnGreen : Brushes.Red;
+                g.DrawString(text, font, brush, 20, 50);
+            }
+
+            if (!string.IsNullOrWhiteSpace(_model.EndReason))
+            {
+                using (var font = new Font("Consolas", 10))
+                    g.DrawString(_model.EndReason, font, Brushes.White, 20, 80);
+            }
         }
     }
 }

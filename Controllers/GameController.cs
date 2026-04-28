@@ -103,7 +103,7 @@ namespace CodeYourself.Controllers
 
         private bool StepOneSimulationTick()
         {
-            if (_model.IsGameOver)
+            if (_model.EndState != GameEndState.Running)
             {
                 Stop();
                 GameUpdated?.Invoke(); // финальная перерисовка
@@ -130,6 +130,15 @@ namespace CodeYourself.Controllers
             _model.StepSimulationTick();
             _remainingSimulationTicksForCommand--;
             LogicFrameCommitted?.Invoke();
+
+            // Если состояние завершилось на этом сим-тыке — останавливаемся и делаем финальную отрисовку.
+            if (_model.EndState != GameEndState.Running)
+            {
+                Stop();
+                GameUpdated?.Invoke();
+                return false;
+            }
+
             return true;
         }
 

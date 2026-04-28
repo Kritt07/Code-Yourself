@@ -12,8 +12,19 @@ namespace CodeYourself.Models
         Right
     }
 
+    public enum GameEndState
+    {
+        Running,
+        Won,
+        Lost
+    }
+
     public partial class GameModel
     {
+        // Для hazards (пила/шипы) делаем более точную проверку, чем Union(prev,curr):
+        // семплируем траекторию внутри sim-tick, чтобы избежать ложных коллизий при диагональном движении.
+        private const int HazardCollisionSubsteps = 8;
+
         public const int CanvasWidth = 800;
         public const int CanvasHeight = 400;
 
@@ -32,16 +43,16 @@ namespace CodeYourself.Models
             public int SimTickCount { get; }
             public Rectangle PlayerBounds { get; }
             public ObstacleSnapshot[] Obstacles { get; }
-            public bool IsGameOver { get; }
-            public string GameOverReason { get; }
+            public GameEndState EndState { get; }
+            public string EndReason { get; }
 
-            public RenderSnapshot(int simTickCount, Rectangle playerBounds, ObstacleSnapshot[] obstacles, bool isGameOver, string gameOverReason)
+            public RenderSnapshot(int simTickCount, Rectangle playerBounds, ObstacleSnapshot[] obstacles, GameEndState endState, string endReason)
             {
                 SimTickCount = simTickCount;
                 PlayerBounds = playerBounds;
                 Obstacles = obstacles ?? Array.Empty<ObstacleSnapshot>();
-                IsGameOver = isGameOver;
-                GameOverReason = gameOverReason;
+                EndState = endState;
+                EndReason = endReason;
             }
         }
 
@@ -62,8 +73,20 @@ namespace CodeYourself.Models
         private readonly List<IObstacle> _obstacles = new List<IObstacle>();
         public IReadOnlyList<IObstacle> Obstacles => _obstacles;
 
-        public bool IsGameOver { get; private set; }
-        public string GameOverReason { get; private set; }
+        public GameEndState EndState { get; private set; } = GameEndState.Running;
+        public string EndReason { get; private set; }
+
+        // Week 3 совместимость: старый UI/код мог читать IsGameOver/GameOverReason.
+        public bool IsGameOver => EndState == GameEndState.Lost;
+        public string GameOverReason => EndState == GameEndState.Lost ? EndReason : null;
+
+        // Финиш-зона уровня (часть контента уровня, не сбрасывается в Reset()).
+        public Rectangle? FinishZone { get; private set; }
+
+        public void SetFinishZone(Rectangle zone)
+        {
+            FinishZone = zone;
+        }
 
         private Rectangle? _playerPrevBounds;
         private readonly Dictionary<IObstacle, Rectangle> _obstaclePrevBounds = new Dictionary<IObstacle, Rectangle>();
@@ -100,13 +123,13 @@ namespace CodeYourself.Models
                 simTickCount: SimTickCount,
                 playerBounds: GetPlayerBounds(),
                 obstacles: obstacles,
-                isGameOver: IsGameOver,
-                gameOverReason: GameOverReason);
+                endState: EndState,
+                endReason: EndReason);
         }
 
         public void StepSimulationTick()
         {
-            if (IsGameOver)
+            if (EndState != GameEndState.Running)
             {
                 return;
             }
@@ -131,9 +154,8 @@ namespace CodeYourself.Models
 
             var currPlayer = GetPlayerBounds();
 
-            // 3) Пилы — смертельные. Проверяем swept collision (учёт пути за тик) только для них.
-            var sweptPlayer = Union(prevPlayer, currPlayer);
-
+            // 3) Пилы/шипы — смертельные. Проверяем движение внутри тика подшагами (детерминированно),
+            // чтобы корректно "перепрыгивать" hazards по дуге.
             foreach (var obstacle in _obstacles)
             {
                 if (obstacle.Kind != ObstacleKind.Saw && obstacle.Kind != ObstacleKind.Spikes)
@@ -141,13 +163,30 @@ namespace CodeYourself.Models
 
                 var prevObs = _obstaclePrevBounds.TryGetValue(obstacle, out var p) ? p : obstacle.Bounds;
                 var currObs = obstacle.Bounds;
-                var sweptObs = Union(prevObs, currObs);
 
-                if (sweptPlayer.IntersectsWith(sweptObs))
+                for (int i = 0; i <= HazardCollisionSubsteps; i++)
                 {
-                    IsGameOver = true;
-                    GameOverReason = $"Collision with {obstacle.Kind}";
+                    var playerAt = LerpRect(prevPlayer, currPlayer, i, HazardCollisionSubsteps);
+                    var obsAt = LerpRect(prevObs, currObs, i, HazardCollisionSubsteps);
+                    if (playerAt.IntersectsWith(obsAt))
+                    {
+                        EndState = GameEndState.Lost;
+                        EndReason = $"Collision with {obstacle.Kind}";
+                        break;
+                    }
+                }
+
+                if (EndState != GameEndState.Running)
                     break;
+            }
+
+            // 4) Победа: если попали в финиш-зону. Приоритет у поражения (если в этот тик умерли — победа не засчитывается).
+            if (EndState == GameEndState.Running && FinishZone.HasValue)
+            {
+                if (currPlayer.IntersectsWith(FinishZone.Value))
+                {
+                    EndState = GameEndState.Won;
+                    EndReason = "Reached finish";
                 }
             }
 
@@ -159,8 +198,8 @@ namespace CodeYourself.Models
         {
             SimTickCount = 0;
             Player.SetPosition(_playerStartPosition.X, _playerStartPosition.Y);
-            IsGameOver = false;
-            GameOverReason = null;
+            EndState = GameEndState.Running;
+            EndReason = null;
             _playerPrevBounds = null;
             SyncFixedFromPlayer();
             ResetPhysics();
@@ -203,6 +242,22 @@ namespace CodeYourself.Models
             var right = Math.Max(a.Right, b.Right);
             var bottom = Math.Max(a.Bottom, b.Bottom);
             return Rectangle.FromLTRB(left, top, right, bottom);
+        }
+
+        private static Rectangle LerpRect(Rectangle a, Rectangle b, int step, int steps)
+        {
+            if (steps <= 0) return a;
+            if (step <= 0) return a;
+            if (step >= steps) return b;
+
+            // Детерминированная линейная интерполяция по целым (без float).
+            int Lerp(int av, int bv) => av + (int)(((long)(bv - av) * step) / steps);
+
+            return new Rectangle(
+                x: Lerp(a.X, b.X),
+                y: Lerp(a.Y, b.Y),
+                width: Lerp(a.Width, b.Width),
+                height: Lerp(a.Height, b.Height));
         }
     }
 }

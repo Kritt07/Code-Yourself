@@ -10,10 +10,12 @@ namespace CodeYourself.Models
 
         // MOVE должен стремиться пройти 50px за 1 command tick (=30 sim ticks).
         private const int MoveDistancePerCommandTickPx = 50;
+        // JUMP — чуть дальше, чем MOVE (ощущается как "длина прыжка").
+        private const int JumpDistancePerCommandTickPx = 60;
 
         // Вертикальная физика (в px/tick, умноженных на 1000 для fixed-point).
         private const int GravityFixed = 1400;        // 1.4 px/tick^2
-        private const int JumpImpulseFixed = 25000;   // 20 px/tick вверх
+        private const int JumpImpulseFixed = 20000;   // 20 px/tick вверх
         private const int MaxFallSpeedFixed = 30000;  // 30 px/tick вниз
 
         // Физика игрока.
@@ -43,11 +45,16 @@ namespace CodeYourself.Models
 
         private void StartMove(MoveDirection direction, int durationSimTicks)
         {
+            StartMove(direction, durationSimTicks, MoveDistancePerCommandTickPx);
+        }
+
+        private void StartMove(MoveDirection direction, int durationSimTicks, int distancePerCommandTickPx)
+        {
             var ticks = Math.Max(1, durationSimTicks);
             _moveTicksLeft = ticks;
             _moveStepSign = direction == MoveDirection.Left ? -1 : 1;
 
-            var total = MoveDistancePerCommandTickPx * FixedScale;
+            var total = distancePerCommandTickPx * FixedScale;
             _moveStepBaseFixed = total / ticks;
             _moveStepRemainder = total % ticks;
         }
@@ -57,7 +64,7 @@ namespace CodeYourself.Models
             // Прыгать можно только стоя на земле/платформе.
             if (!_grounded)
             {
-                StartMove(direction, durationSimTicks);
+                StartMove(direction, durationSimTicks, JumpDistancePerCommandTickPx);
                 return;
             }
 
@@ -65,7 +72,7 @@ namespace CodeYourself.Models
             _grounded = false;
             _groundedPlatform = null;
 
-            StartMove(direction, durationSimTicks);
+            StartMove(direction, durationSimTicks, JumpDistancePerCommandTickPx);
         }
 
         private void IntegrateAndResolvePlayer()
