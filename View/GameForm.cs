@@ -63,8 +63,8 @@ namespace CodeYourself
             _model.AddObstacle(new SawObstacle(
                 minX: 250,
                 maxX: 550,
-                y: GameModel.GroundY - 50,
-                size: 50,
+                y: GameModel.GroundY - 35,
+                size: 35,
                 stepPerTick: 50));
 
             // Платформа (слева): чуть выше земли, ходит туда-обратно.

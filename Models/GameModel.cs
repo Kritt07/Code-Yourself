@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Xml.Serialization;
+using System.Linq;
 using CodeYourself.Models.Obstacles;
 
 namespace CodeYourself.Models
@@ -12,17 +12,17 @@ namespace CodeYourself.Models
         Right
     }
 
-    public class GameModel
+    public partial class GameModel
     {
         public const int CanvasWidth = 800;
         public const int CanvasHeight = 400;
 
         public const int GroundHeight = 50;
         public const int GroundY = CanvasHeight - GroundHeight;
-        public const int PlayerSize = 50;
+        public const int PlayerSize = 40;
 
         public Player Player { get; set; }
-        // Симуляционные тики (30 Гц).
+        // Симуляционные тики (фиксированный шаг; 30 sim ticks на command tick).
         public int SimTickCount { get; private set; } = 0;
 
         public const int DefaultCommandDurationSimTicks = 30;
@@ -68,25 +68,10 @@ namespace CodeYourself.Models
         private Rectangle? _playerPrevBounds;
         private readonly Dictionary<IObstacle, Rectangle> _obstaclePrevBounds = new Dictionary<IObstacle, Rectangle>();
 
-        // Намерения игрока на текущий командный тик.
-        private int _pendingMoveDx;
-        private int _pendingMoveSimTicksLeft;
-
-        private JumpState _jump;
-
-        private sealed class JumpState
-        {
-            public bool IsActive { get; set; }
-            public int SubTicksTotal { get; set; }
-            public int SubTickIndex { get; set; }
-            public Point Start { get; set; }
-            public Point End { get; set; }
-            public int PeakHeight { get; set; }
-        }
-
         public GameModel()
         {
             Player = new Player(_playerStartPosition.X, _playerStartPosition.Y, PlayerSize);
+            SyncFixedFromPlayer();
         }
 
         public void AddObstacle(IObstacle obstacle)
@@ -126,6 +111,11 @@ namespace CodeYourself.Models
                 return;
             }
 
+            // 0) Предыдущее положение игрока для swept-collision по hazards.
+            // Используем зафиксированное прошлым тиком значение, чтобы тесты/сценарии с "телепортом"
+            // между тиками тоже детектировались.
+            var prevPlayer = _playerPrevBounds ?? GetPlayerBounds();
+
             // 1) Обновляем препятствия детерминированно по текущему тиковому индексу.
             foreach (var obstacle in _obstacles)
             {
@@ -133,50 +123,13 @@ namespace CodeYourself.Models
                 obstacle.Update(SimTickCount);
             }
 
-            // 1.5) Двигаем игрока на один сим-так согласно намерениям.
-            ApplyPlayerMovementForSimulationTick();
+            // 2) Двигаем игрока (vx/vy + гравитация) и решаем коллизии с твёрдыми платформами.
+            IntegrateAndResolvePlayer();
 
-            // 2) Платформы — не "смертельные", а твёрдые: разрешаем приземляться и ехать вместе с ними.
-            //    Если предыдущие границы ещё не зафиксированы (например, в тестах/ручных сценариях) — fallback к текущему положению.
-            var prevPlayer = _playerPrevBounds ?? GetPlayerBounds();
+            // 2.1) Если стоим на moving-platform — едем вместе с ней на её dx за тик.
+            ApplyMovingPlatformRide();
+
             var currPlayer = GetPlayerBounds();
-
-            foreach (var obstacle in _obstacles)
-            {
-                if (obstacle.Kind != ObstacleKind.MovingPlatform && obstacle.Kind != ObstacleKind.StaticPlatform)
-                    continue;
-
-                var prevObs = _obstaclePrevBounds.TryGetValue(obstacle, out var p) ? p : obstacle.Bounds;
-                var currObs = obstacle.Bounds;
-
-                // Если игрок стоял на платформе в прошлом тике — едем вместе с ней (только для движущейся).
-                if (obstacle.Kind == ObstacleKind.MovingPlatform)
-                {
-                    var wasStandingOnTop =
-                        prevPlayer.Bottom == prevObs.Top &&
-                        prevPlayer.Right > prevObs.Left &&
-                        prevPlayer.Left < prevObs.Right;
-
-                    if (wasStandingOnTop)
-                    {
-                        var platformDx = currObs.X - prevObs.X;
-                        if (platformDx != 0)
-                        {
-                            var newX = Player.Position.X + platformDx;
-                            newX = Math.Max(0, Math.Min(CanvasWidth - Player.Size, newX));
-                            Player.SetPosition(newX, Player.Position.Y);
-                            currPlayer = GetPlayerBounds();
-                        }
-                    }
-                }
-
-                // Приземление сверху: в текущем тике пересеклись с платформой, а раньше были выше её верхней границы.
-                if (currPlayer.IntersectsWith(currObs) && prevPlayer.Bottom <= prevObs.Top)
-                {
-                    Player.SetPosition(Player.Position.X, currObs.Top - Player.Size);
-                    currPlayer = GetPlayerBounds();
-                }
-            }
 
             // 3) Пилы — смертельные. Проверяем swept collision (учёт пути за тик) только для них.
             var sweptPlayer = Union(prevPlayer, currPlayer);
@@ -202,50 +155,6 @@ namespace CodeYourself.Models
             SimTickCount++;
         }
 
-        private void ApplyPlayerMovementForSimulationTick()
-        {
-            // Прыжок имеет приоритет и сам включает движение по X/Y.
-            if (_jump != null && _jump.IsActive)
-            {
-                var total = Math.Max(1, _jump.SubTicksTotal);
-                var i = Math.Max(0, Math.Min(total, _jump.SubTickIndex + 1));
-                var t = i / (double)total;
-
-                var x = Lerp(_jump.Start.X, _jump.End.X, t);
-                var yLine = Lerp(_jump.Start.Y, _jump.End.Y, t);
-                var arc = 4.0 * _jump.PeakHeight * t * (1.0 - t);
-                var y = (int)Math.Round(yLine - arc);
-
-                SetPlayerPosition(x, y);
-
-                _jump.SubTickIndex++;
-                if (_jump.SubTickIndex >= total)
-                    _jump.IsActive = false;
-
-                return;
-            }
-
-            if (_pendingMoveSimTicksLeft <= 0 || _pendingMoveDx == 0)
-                return;
-
-            var remaining = Math.Max(1, _pendingMoveSimTicksLeft);
-            var step = (int)Math.Round(_pendingMoveDx / (double)remaining);
-            if (step == 0)
-                step = _pendingMoveDx > 0 ? 1 : -1;
-
-            var newX = Player.Position.X + step;
-            newX = Math.Max(0, Math.Min(CanvasWidth - Player.Size, newX));
-            Player.SetPosition(newX, Player.Position.Y);
-
-            _pendingMoveDx -= step;
-            _pendingMoveSimTicksLeft--;
-        }
-
-        private static int Lerp(int a, int b, double t)
-        {
-            return (int)Math.Round(a + (b - a) * t);
-        }
-
         public void Reset()
         {
             SimTickCount = 0;
@@ -253,9 +162,8 @@ namespace CodeYourself.Models
             IsGameOver = false;
             GameOverReason = null;
             _playerPrevBounds = null;
-            _pendingMoveDx = 0;
-            _pendingMoveSimTicksLeft = 0;
-            _jump = null;
+            SyncFixedFromPlayer();
+            ResetPhysics();
 
             foreach (var obstacle in _obstacles)
             {
@@ -266,94 +174,12 @@ namespace CodeYourself.Models
 
         public void MovePlayer(MoveDirection direction, int durationSimTicks = DefaultCommandDurationSimTicks)
         {
-            // Одна команда MOVE = движение на Player.DefaultStep,
-            // растянутое по сим-такту на длительность команды.
-            var dx = direction == MoveDirection.Left ? -Player.DefaultStep : Player.DefaultStep;
-            _pendingMoveDx = dx;
-            _pendingMoveSimTicksLeft = Math.Max(1, durationSimTicks);
-            _jump = null;
+            StartMove(direction, durationSimTicks);
         }
 
         public void JumpPlayer(MoveDirection direction, int durationSimTicks = DefaultCommandDurationSimTicks)
         {
-            const int jumpHeight = 120;
-
-            var dx = direction == MoveDirection.Left ? -Player.DefaultStep : Player.DefaultStep;
-            var newX = Player.Position.X + dx;
-            newX = Math.Max(0, Math.Min(CanvasWidth - Player.Size, newX));
-
-            // Базовая высота — текущая (мы без гравитации), но не ниже земли.
-            var groundY = GroundY - Player.Size;
-            var baseY = Math.Min(Player.Position.Y, groundY);
-
-            // Ищем целевую высоту приземления в точке newX.
-            // Правила:
-            // - если есть платформы выше/на уровне baseY и достижимые по высоте прыжка (<= jumpHeight) — садимся на самую высокую;
-            // - иначе "падаем" вниз на ближайшую платформу под игроком (по newX), либо на землю.
-            int? bestReachableUpY = null; // standY (меньше = выше)
-            int? bestBelowY = null;       // standY (меньше = ближе к игроку сверху, но всё равно ниже baseY)
-            var playerRectAtX = new Rectangle(newX, 0, Player.Size, Player.Size);
-
-            foreach (var obstacle in _obstacles)
-            {
-                if (obstacle.Kind != ObstacleKind.MovingPlatform && obstacle.Kind != ObstacleKind.StaticPlatform)
-                    continue;
-
-                var r = obstacle.Bounds;
-                var standY = r.Top - Player.Size; // позиция стояния на платформе
-                playerRectAtX.Y = standY;
-
-                // Должны перекрываться по X.
-                var overlapsX = playerRectAtX.Right > r.Left && playerRectAtX.Left < r.Right;
-                if (!overlapsX)
-                    continue;
-
-                // Вариант 1: достижимо вверх/вровень (высота прыжка ограничена jumpHeight).
-                var reachableUp = standY <= baseY && (baseY - standY) <= jumpHeight;
-                if (reachableUp)
-                {
-                    if (bestReachableUpY == null || standY < bestReachableUpY.Value)
-                        bestReachableUpY = standY;
-                    continue;
-                }
-
-                // Вариант 2: платформа ниже — значит в неё можно "упасть" (ближайшая снизу).
-                if (standY > baseY)
-                {
-                    if (bestBelowY == null || standY < bestBelowY.Value)
-                        bestBelowY = standY;
-                }
-            }
-
-            int targetY;
-            if (bestReachableUpY != null)
-                targetY = bestReachableUpY.Value;
-            else if (bestBelowY != null)
-                targetY = bestBelowY.Value;
-            else
-                targetY = groundY;
-
-            // Итоговая Y всегда в пределах канваса.
-            var newY = Math.Max(0, Math.Min(groundY, targetY));
-
-            _pendingMoveDx = 0;
-            _pendingMoveSimTicksLeft = 0;
-
-            // Фиксируем высоту прыжка относительно старта: пик должен быть ровно на jumpHeight выше стартовой точки.
-            // В текущей формуле дуги используется линия между Start и End, поэтому "эффективную" высоту дуги
-            // корректируем так, чтобы midpoint приходился на (StartY - jumpHeight).
-            var effectivePeakHeight = (int)Math.Round(jumpHeight + (newY - Player.Position.Y) / 2.0);
-            effectivePeakHeight = Math.Max(0, effectivePeakHeight);
-
-            _jump = new JumpState
-            {
-                IsActive = true,
-                SubTicksTotal = Math.Max(1, durationSimTicks),
-                SubTickIndex = 0,
-                Start = new Point(Player.Position.X, Player.Position.Y),
-                End = new Point(newX, newY),
-                PeakHeight = effectivePeakHeight
-            };
+            StartJump(direction, durationSimTicks);
         }
 
         public void SetPlayerPosition(int x, int y)
@@ -362,6 +188,7 @@ namespace CodeYourself.Models
             var groundY = GroundY - Player.Size;
             y = Math.Max(0, Math.Min(groundY, y));
             Player.SetPosition(x, y);
+            SyncFixedFromPlayer();
         }
 
         public Rectangle GetPlayerBounds()
