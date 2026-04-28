@@ -175,10 +175,40 @@ namespace CodeYourself.Models
                 var prevObs = _obstaclePrevBounds.TryGetValue(obstacle, out var p) ? p : obstacle.Bounds;
                 var currObs = obstacle.Bounds;
 
+                Rectangle ShrinkSpikesHitbox(Rectangle r)
+                {
+                    // Визуально шипы "острые" и занимают не всю ширину/высоту Bounds.
+                    // Сжимаем хитбокс: уже по X и ниже по Y (только верхнюю часть), чтобы прыжки через 1 клетку были возможны.
+                    const int insetX = 4;
+                    const int insetTop = 6;
+
+                    int left = r.Left + insetX;
+                    int right = r.Right - insetX;
+                    if (right <= left)
+                    {
+                        left = r.Left;
+                        right = r.Right;
+                    }
+
+                    int top = r.Top + insetTop;
+                    int bottom = r.Bottom;
+                    if (bottom <= top)
+                    {
+                        top = r.Top;
+                        bottom = r.Bottom;
+                    }
+
+                    return Rectangle.FromLTRB(left, top, right, bottom);
+                }
+
                 for (int i = 0; i <= HazardCollisionSubsteps; i++)
                 {
                     var playerAt = LerpRect(prevPlayer, currPlayer, i, HazardCollisionSubsteps);
                     var obsAt = LerpRect(prevObs, currObs, i, HazardCollisionSubsteps);
+
+                    if (obstacle.Kind == ObstacleKind.Spikes)
+                        obsAt = ShrinkSpikesHitbox(obsAt);
+
                     if (playerAt.IntersectsWith(obsAt))
                     {
                         EndState = GameEndState.Lost;

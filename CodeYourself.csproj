@@ -52,6 +52,7 @@
     <Compile Include="Commands\WaitCommand.cs" />
     <Compile Include="Controllers\GameController.cs" />
     <Compile Include="Levels\IGameLevel.cs" />
+    <Compile Include="Levels\NeonSpikesTestLevel.cs" />
     <Compile Include="Levels\Week3Level.cs" />
     <Compile Include="Models\Grid.cs" />
     <Compile Include="Models\Player.cs" />
@@ -70,6 +71,8 @@
     <Compile Include="View\GameForm.Designer.cs">
       <DependentUpon>GameForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="View\Rendering\GameRenderer.cs" />
+    <Compile Include="View\Rendering\NeonTheme.cs" />
     <Compile Include="Models\GameModel.cs" />
     <Compile Include="Models\GameModel.Physics.cs" />
     <Compile Include="Program.cs" />
