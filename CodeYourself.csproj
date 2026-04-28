@@ -53,6 +53,7 @@
     <Compile Include="Controllers\GameController.cs" />
     <Compile Include="Levels\IGameLevel.cs" />
     <Compile Include="Levels\Week3Level.cs" />
+    <Compile Include="Models\Grid.cs" />
     <Compile Include="Models\Player.cs" />
     <Compile Include="Models\Obstacles\IObstacle.cs" />
     <Compile Include="Models\Obstacles\MovingSpikesObstacle.cs" />

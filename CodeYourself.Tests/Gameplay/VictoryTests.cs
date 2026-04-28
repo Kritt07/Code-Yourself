@@ -16,7 +16,7 @@ namespace CodeYourself.Tests.Gameplay
             var model = new GameModel();
             model.ClearObstacles();
 
-            model.SetPlayerPosition(10, GameModel.GroundY - GameModel.PlayerSize);
+            model.SetPlayerPosition(10, GameModel.GroundY - GameModel.PlayerHeightPx);
             model.SetFinishZone(model.GetPlayerBounds());
 
             model.StepSimulationTick();
@@ -41,11 +41,11 @@ namespace CodeYourself.Tests.Gameplay
             model.SetFinishZone(spikes.Bounds);
 
             // 1) Фиксируем prev
-            model.SetPlayerPosition(0, GameModel.GroundY - GameModel.PlayerSize);
+            model.SetPlayerPosition(0, GameModel.GroundY - GameModel.PlayerHeightPx);
             model.StepSimulationTick();
 
             // 2) «Телепорт» на шипы за один тик, чтобы гарантированно сработал swept и одновременно пересечение с FinishZone.
-            model.SetPlayerPosition(310, GameModel.GroundY - GameModel.PlayerSize);
+            model.SetPlayerPosition(310, GameModel.GroundY - GameModel.PlayerHeightPx);
             model.StepSimulationTick();
 
             Assert.AreEqual(GameEndState.Lost, model.EndState);
@@ -58,7 +58,7 @@ namespace CodeYourself.Tests.Gameplay
             model.ClearObstacles();
 
             // Победа должна произойти на первом же сим-тыке.
-            model.SetPlayerPosition(10, GameModel.GroundY - GameModel.PlayerSize);
+            model.SetPlayerPosition(10, GameModel.GroundY - GameModel.PlayerHeightPx);
             model.SetFinishZone(model.GetPlayerBounds());
 
             var controller = new GameController(model);

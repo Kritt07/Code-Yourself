@@ -8,10 +8,10 @@ namespace CodeYourself.Models
         // Fixed-point физика: значения в "px * FixedScale".
         private const int FixedScale = 1000;
 
-        // MOVE должен стремиться пройти 50px за 1 command tick (=30 sim ticks).
-        private const int MoveDistancePerCommandTickPx = 50;
-        // JUMP — чуть дальше, чем MOVE (ощущается как "длина прыжка").
-        private const int JumpDistancePerCommandTickPx = 60;
+        // MOVE: 1 клетка за 1 command tick (=30 sim ticks).
+        private const int MoveDistancePerCommandTickPx = Grid.CellSizePx;
+        // JUMP: 2 клетки по X за 1 command tick.
+        private const int JumpDistancePerCommandTickPx = 2 * Grid.CellSizePx;
 
         // Вертикальная физика (в px/tick, умноженных на 1000 для fixed-point).
         private const int GravityFixed = 1400;        // 1.4 px/tick^2
@@ -105,7 +105,7 @@ namespace CodeYourself.Models
                 SyncFixedFromPlayerY();
 
             // 4) Земля.
-            var groundY = GroundY - Player.Size;
+            var groundY = GroundY - Player.Height;
             if (Player.Position.Y >= groundY)
             {
                 Player.SetPosition(Player.Position.X, groundY);
@@ -132,7 +132,7 @@ namespace CodeYourself.Models
                     continue;
 
                 if (dxFixed > 0)
-                    Player.SetPosition(r.Left - Player.Size, Player.Position.Y);
+                    Player.SetPosition(r.Left - Player.Width, Player.Position.Y);
                 else
                     Player.SetPosition(r.Right, Player.Position.Y);
 
@@ -155,7 +155,7 @@ namespace CodeYourself.Models
                 if (_vyFixed > 0)
                 {
                     // Падение: приземляемся сверху.
-                    Player.SetPosition(Player.Position.X, r.Top - Player.Size);
+                    Player.SetPosition(Player.Position.X, r.Top - Player.Height);
                     _vyFixed = 0;
                     _grounded = true;
                     _groundedPlatform = o;
@@ -232,7 +232,7 @@ namespace CodeYourself.Models
         private void ClampFixedToCanvasX()
         {
             var min = 0L;
-            var max = (long)(CanvasWidth - Player.Size) * FixedScale;
+            var max = (long)(CanvasWidth - Player.Width) * FixedScale;
             if (_posXFixed < min) _posXFixed = min;
             if (_posXFixed > max) _posXFixed = max;
         }
@@ -240,7 +240,7 @@ namespace CodeYourself.Models
         private void ClampFixedToCanvasY()
         {
             var min = 0L;
-            var max = (long)(GroundY - Player.Size) * FixedScale;
+            var max = (long)(GroundY - Player.Height) * FixedScale;
             if (_posYFixed < min) _posYFixed = min;
             if (_posYFixed > max) _posYFixed = max;
         }

@@ -18,12 +18,12 @@ namespace CodeYourself.Tests.Gameplay
             model.AddObstacle(saw);
 
             // Игрок стартует слева, "телепортом" пересекает пилу за один тик.
-            model.SetPlayerPosition(0, GameModel.GroundY - GameModel.PlayerSize);
+            model.SetPlayerPosition(0, GameModel.GroundY - GameModel.PlayerHeightPx);
 
             // 1) Фиксируем prev на левом положении (первый сим-тик).
             model.StepSimulationTick();
             // 2) Переносим игрока вправо и делаем следующий сим-тик: swept-collision должен сработать.
-            model.SetPlayerPosition(600, GameModel.GroundY - GameModel.PlayerSize);
+            model.SetPlayerPosition(600, GameModel.GroundY - GameModel.PlayerHeightPx);
             model.StepSimulationTick();
 
             Assert.IsTrue(model.IsGameOver);
@@ -39,10 +39,10 @@ namespace CodeYourself.Tests.Gameplay
             var saw = new SawObstacle(minX: 700, maxX: 700, y: GameModel.GroundY - 50, size: 50, stepPerTick: 50);
             model.AddObstacle(saw);
 
-            model.SetPlayerPosition(0, GameModel.GroundY - GameModel.PlayerSize);
+            model.SetPlayerPosition(0, GameModel.GroundY - GameModel.PlayerHeightPx);
 
             model.StepSimulationTick();
-            model.SetPlayerPosition(600, GameModel.GroundY - GameModel.PlayerSize);
+            model.SetPlayerPosition(600, GameModel.GroundY - GameModel.PlayerHeightPx);
 
             model.StepSimulationTick();
 

@@ -33,6 +33,7 @@ namespace CodeYourself
         private SplitContainer _splitContainer;
         private bool _splitterTouchedByUser;
         private readonly CommandParser _parser = new CommandParser();
+        private Button _restartButton;
 
         // Оставляем отрисовку простой и предсказуемой (как в предыдущей реализации),
         // но возвращаем render tick (~60Hz) для плавной перерисовки.
@@ -153,9 +154,29 @@ namespace CodeYourself
             _gamePanel.Paint += GamePanel_Paint;
 
             // при любом изменении размера панели сразу перерисовываем
-            _gamePanel.Resize += (s, e) => _gamePanel.Invalidate();
+            _gamePanel.Resize += (s, e) =>
+            {
+                UpdateRestartButtonLayout();
+                _gamePanel.Invalidate();
+            };
 
             _splitContainer.Panel2.Controls.Add(_gamePanel);
+
+            // Кнопка рестарта внутри канваса (позиционируется относительно центрированного Canvas).
+            _restartButton = new Button
+            {
+                Text = "⟲ Restart",
+                Width = 90,
+                Height = 28,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(55, 55, 70),
+                ForeColor = Color.White
+            };
+            _restartButton.FlatAppearance.BorderColor = Color.FromArgb(90, 90, 110);
+            _restartButton.FlatAppearance.BorderSize = 1;
+            _restartButton.Click += (s, e) => RestartLevel();
+            _gamePanel.Controls.Add(_restartButton);
+            UpdateRestartButtonLayout();
 
             //  Кнопки 
             var btnPanel = new FlowLayoutPanel
@@ -179,8 +200,41 @@ namespace CodeYourself
                     int totalWidth = ClientSize.Width;
                     _splitContainer.SplitterDistance = (int)(totalWidth * 0.4);
                 }
+                UpdateRestartButtonLayout();
                 _gamePanel.Invalidate(); // сразу центрируем при запуске
             };
+        }
+
+        private void RestartLevel()
+        {
+            _controller.Stop();
+            _controller.ClearCommands();
+
+            _model.Reset();
+            ApplyLevel();
+
+            if (_codeEditor != null && !_codeEditor.IsDisposed)
+                _codeEditor.ReadOnly = false;
+
+            HighlightLine(-1);
+            UpdateRestartButtonLayout();
+            _gamePanel.Invalidate();
+        }
+
+        private void UpdateRestartButtonLayout()
+        {
+            if (_restartButton == null || _gamePanel == null || _gamePanel.IsDisposed)
+                return;
+
+            int offsetX = (_gamePanel.Width - GameModel.CanvasWidth) / 2;
+            int offsetY = (_gamePanel.Height - GameModel.CanvasHeight) / 2;
+
+            const int margin = 10;
+            var x = offsetX + GameModel.CanvasWidth - _restartButton.Width - margin;
+            var y = offsetY + margin;
+
+            _restartButton.Location = new Point(Math.Max(0, x), Math.Max(0, y));
+            _restartButton.BringToFront();
         }
 
         private void RunProgram()
@@ -241,6 +295,8 @@ namespace CodeYourself
             // Смещаем систему координат
             g.TranslateTransform(offsetX, offsetY);
 
+            DrawGrid(g);
+
             // Рисуем землю (только в пределах виртуального поля)
             g.FillRectangle(Brushes.DarkSlateGray, 
                             0, GameModel.GroundY, 
@@ -268,8 +324,28 @@ namespace CodeYourself
             g.ResetTransform();
 
             // Командные тики (1 тик = 1 команда), в экранных координатах.
-            using (var font = new Font("Consolas", 10))
-                g.DrawString($"CommandTick: {_controller.CommandTickCount} | RenderTick: {_renderTickCount}", font, Brushes.Yellow, 10, 10);
+        }
+
+        private static void DrawGrid(Graphics g)
+        {
+            using (var pen = new Pen(Color.FromArgb(35, 255, 255, 255), 1))
+            using (var axisPen = new Pen(Color.FromArgb(90, 255, 255, 255), 2))
+            {
+                // Vertical lines
+                for (int x = 0; x <= GameModel.CanvasWidth; x += Grid.CellSizePx)
+                {
+                    g.DrawLine(pen, x, 0, x, GameModel.CanvasHeight);
+                }
+
+                // Horizontal lines
+                for (int y = 0; y <= GameModel.CanvasHeight; y += Grid.CellSizePx)
+                {
+                    g.DrawLine(pen, 0, y, GameModel.CanvasWidth, y);
+                }
+
+                // Ground line highlight
+                g.DrawLine(axisPen, 0, GameModel.GroundY, GameModel.CanvasWidth, GameModel.GroundY);
+            }
         }
 
         private void DrawObstacles(Graphics g)
@@ -304,8 +380,8 @@ namespace CodeYourself
             g.FillRectangle(Brushes.LimeGreen,
                 player.Position.X,
                 player.Position.Y,
-                player.Size,
-                player.Size);
+                player.Width,
+                player.Height);
         }
 
         private void DrawEndOverlay(Graphics g)

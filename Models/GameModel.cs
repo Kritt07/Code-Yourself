@@ -30,7 +30,16 @@ namespace CodeYourself.Models
 
         public const int GroundHeight = 50;
         public const int GroundY = CanvasHeight - GroundHeight;
-        public const int PlayerSize = 40;
+        public const int PlayerInsetLeftPx = 5;
+        public const int PlayerInsetRightPx = 5;
+        // Делаем player квадратным (40x40) при bottomInset=0:
+        // size = 50 - 5 - 5 = 40 => topInset = 50 - 40 - 0 = 10.
+        public const int PlayerInsetTopPx = 10;
+        public const int PlayerInsetBottomPx = 0;
+        public const int PlayerWidthPx = Grid.CellSizePx - PlayerInsetLeftPx - PlayerInsetRightPx;   // 40
+        public const int PlayerHeightPx = Grid.CellSizePx - PlayerInsetTopPx - PlayerInsetBottomPx; // 45
+
+        public const int PlayerCellCenterOffsetXPx = (Grid.CellSizePx - PlayerWidthPx) / 2; // 5
 
         public Player Player { get; set; }
         // Симуляционные тики (фиксированный шаг; 30 sim ticks на command tick).
@@ -68,7 +77,9 @@ namespace CodeYourself.Models
             }
         }
 
-        private readonly Point _playerStartPosition = new Point(50, GroundY - PlayerSize);
+        private readonly Point _playerStartPosition = new Point(
+            x: Grid.XCellsToPx(1) + PlayerCellCenterOffsetXPx,
+            y: Grid.TopPxFromBottomOnGroundCells(0, PlayerHeightPx));
 
         private readonly List<IObstacle> _obstacles = new List<IObstacle>();
         public IReadOnlyList<IObstacle> Obstacles => _obstacles;
@@ -93,7 +104,7 @@ namespace CodeYourself.Models
 
         public GameModel()
         {
-            Player = new Player(_playerStartPosition.X, _playerStartPosition.Y, PlayerSize);
+            Player = new Player(_playerStartPosition.X, _playerStartPosition.Y, PlayerWidthPx, PlayerHeightPx);
             SyncFixedFromPlayer();
         }
 
@@ -223,8 +234,8 @@ namespace CodeYourself.Models
 
         public void SetPlayerPosition(int x, int y)
         {
-            x = Math.Max(0, Math.Min(CanvasWidth - Player.Size, x));
-            var groundY = GroundY - Player.Size;
+            x = Math.Max(0, Math.Min(CanvasWidth - Player.Width, x));
+            var groundY = GroundY - Player.Height;
             y = Math.Max(0, Math.Min(groundY, y));
             Player.SetPosition(x, y);
             SyncFixedFromPlayer();
@@ -232,7 +243,7 @@ namespace CodeYourself.Models
 
         public Rectangle GetPlayerBounds()
         {
-            return new Rectangle(Player.Position.X, Player.Position.Y, Player.Size, Player.Size);
+            return new Rectangle(Player.Position.X, Player.Position.Y, Player.Width, Player.Height);
         }
 
         private static Rectangle Union(Rectangle a, Rectangle b)

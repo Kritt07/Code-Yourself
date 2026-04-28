@@ -11,11 +11,17 @@ namespace CodeYourself.Models
     {
         public const int DefaultStep = 50;
         public Point Position { get; private set; }
-        public int Size { get; private set; }
-        public Player(int x, int y, int size)
+        public int Width { get; private set; }
+        public int Height { get; private set; }
+
+        // Back-compat: старый код мог ожидать квадрат; используем max(Width,Height).
+        public int Size => Math.Max(Width, Height);
+
+        public Player(int x, int y, int width, int height)
         {
             Position = new Point(x, y);
-            Size = size;
+            Width = width;
+            Height = height;
         }
 
         internal void MoveBy(int dx, int dy = 0)

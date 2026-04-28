@@ -39,7 +39,7 @@ namespace CodeYourself.Tests.Gameplay
                 height: 20);
             model.AddObstacle(platform);
 
-            model.SetPlayerPosition(10, platform.Bounds.Top - GameModel.PlayerSize);
+            model.SetPlayerPosition(10, platform.Bounds.Top - GameModel.PlayerHeightPx);
             model.StepSimulationTick(); // зафиксировать grounded
 
             model.JumpPlayer(MoveDirection.Right);
@@ -70,7 +70,7 @@ namespace CodeYourself.Tests.Gameplay
             model.AddObstacle(platform);
 
             // Ставим игрока на платформу.
-            model.SetPlayerPosition(10, platform.Bounds.Top - GameModel.PlayerSize);
+            model.SetPlayerPosition(10, platform.Bounds.Top - GameModel.PlayerHeightPx);
 
             // Первый сим-тик: dx платформы = 0 (tick=0), просто фиксируем состояние.
             model.StepSimulationTick();

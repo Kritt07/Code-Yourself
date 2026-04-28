@@ -12,7 +12,7 @@ namespace CodeYourself.Tests.Gameplay
             var model = new GameModel();
             model.ClearObstacles();
 
-            model.SetPlayerPosition(0, GameModel.GroundY - GameModel.PlayerSize);
+            model.SetPlayerPosition(0, GameModel.GroundY - GameModel.PlayerHeightPx);
             var x0 = model.Player.Position.X;
 
             model.MovePlayer(MoveDirection.Right, GameModel.DefaultCommandDurationSimTicks);
