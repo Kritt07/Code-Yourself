@@ -12,6 +12,7 @@ using CodeYourself.Levels;
 using CodeYourself.Models;
 using CodeYourself.Parsing;
 using CodeYourself.Models.Obstacles;
+using CodeYourself.View.Rendering;
 
 namespace CodeYourself
 {
@@ -40,6 +41,7 @@ namespace CodeYourself
         private readonly Timer _renderTimer = new Timer();
         private long _renderTickCount;
         private readonly IGameLevel _level = new Week3Level();
+        private readonly GameRenderer _renderer = new GameRenderer();
 
         public GameForm(GameModel model, GameController controller)
         {
@@ -102,6 +104,8 @@ namespace CodeYourself
                 _controller = null;
             }
 
+            _renderer?.Theme?.Dispose();
+
             _renderTimer.Tick -= RenderTimer_Tick;
             _renderTimer.Stop();
             _renderTimer.Dispose();
@@ -113,6 +117,7 @@ namespace CodeYourself
             this.Size = new Size(1400, 650);           // комфортный стартовый размер
             this.MinimumSize = new Size(1350, 600);    // теперь канвас 800px точно помещается в правую панель (60%)
             this.DoubleBuffered = true;
+            this.BackColor = _renderer.Theme.PanelBackground;
 
             _splitContainer = new SplitContainer
             {
@@ -127,7 +132,7 @@ namespace CodeYourself
             var leftPanel = new Panel
             {
                 Dock = DockStyle.Fill,
-                BackColor = Color.FromArgb(30, 30, 30)
+                BackColor = _renderer.Theme.UiPanelBackground
             };
             _splitContainer.Panel1.Controls.Add(leftPanel);
 
@@ -135,8 +140,8 @@ namespace CodeYourself
             {
                 Multiline = true,
                 Dock = DockStyle.Fill,
-                BackColor = Color.FromArgb(20, 20, 20),
-                ForeColor = Color.LightGreen,
+                BackColor = _renderer.Theme.EditorBackground,
+                ForeColor = _renderer.Theme.EditorForeground,
                 Font = new Font("Consolas", 11),
                 Text = "WAIT 9\r\nJUMP RIGHT 1\r\nMOVE RIGHT 2\r\nWAIT 6\r\nJUMP RIGHT 2\r\nMOVE RIGHT 3\r\nJUMP RIGHT 2\r\n",
                 ReadOnly = false,
@@ -149,7 +154,7 @@ namespace CodeYourself
             _gamePanel = new DoubleBufferedPanel
             {
                 Dock = DockStyle.Fill,
-                BackColor = Color.FromArgb(45, 45, 55)
+                BackColor = _renderer.Theme.PanelBackground
             };
             _gamePanel.Paint += GamePanel_Paint;
 
@@ -169,10 +174,10 @@ namespace CodeYourself
                 Width = 90,
                 Height = 28,
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(55, 55, 70),
-                ForeColor = Color.White
+                BackColor = _renderer.Theme.ButtonBackground,
+                ForeColor = _renderer.Theme.TextPrimary
             };
-            _restartButton.FlatAppearance.BorderColor = Color.FromArgb(90, 90, 110);
+            _restartButton.FlatAppearance.BorderColor = _renderer.Theme.ButtonBorder;
             _restartButton.FlatAppearance.BorderSize = 1;
             _restartButton.Click += (s, e) => RestartLevel();
             _gamePanel.Controls.Add(_restartButton);
@@ -183,13 +188,18 @@ namespace CodeYourself
             {
                 Dock = DockStyle.Bottom,
                 Height = 50,
-                BackColor = Color.FromArgb(40, 40, 40),
+                BackColor = _renderer.Theme.UiPanelBackground,
                 FlowDirection = FlowDirection.LeftToRight,
-                ForeColor = Color.White
+                ForeColor = _renderer.Theme.TextPrimary
             };
             _splitContainer.Panel2.Controls.Add(btnPanel);
 
             var btnRun = new Button { Text = "▶ Run", Width = 100, Height = 35, Margin = new Padding(10) };
+            btnRun.FlatStyle = FlatStyle.Flat;
+            btnRun.BackColor = _renderer.Theme.ButtonBackground;
+            btnRun.ForeColor = _renderer.Theme.TextPrimary;
+            btnRun.FlatAppearance.BorderColor = _renderer.Theme.ButtonBorder;
+            btnRun.FlatAppearance.BorderSize = 1;
             btnRun.Click += (s, e) => RunProgram();
             btnPanel.Controls.Add(btnRun);
 
@@ -285,122 +295,12 @@ namespace CodeYourself
 
         private void GamePanel_Paint(object sender, PaintEventArgs e)
         {
-            var g = e.Graphics;
-            var player = _model.Player;
-
-            // === Центрируем виртуальное поле внутри _gamePanel ===
-            int offsetX = (_gamePanel.Width - GameModel.CanvasWidth) / 2;
-            int offsetY = (_gamePanel.Height - GameModel.CanvasHeight) / 2;
-
-            // Смещаем систему координат
-            g.TranslateTransform(offsetX, offsetY);
-
-            DrawGrid(g);
-
-            // Рисуем землю (только в пределах виртуального поля)
-            g.FillRectangle(Brushes.DarkSlateGray, 
-                            0, GameModel.GroundY, 
-                            GameModel.CanvasWidth, GameModel.GroundHeight);
-
-            DrawObstacles(g);
-            DrawFinish(g);
-
-            // Персонаж
-            DrawPlayer(g, player);
-
-            // Подпись Player
-            using (var font = new Font("Arial", 12, FontStyle.Bold))
-                g.DrawString("Player", font, Brushes.White,
-                             player.Position.X + 8, player.Position.Y - 25);
-
-            // Отладка (явно разделяем командные и симуляционные тики)
-            using (var font = new Font("Consolas", 10))
-                g.DrawString($"CommandTick: {_controller.CommandTickCount} | SimTick: {_model.SimTickCount} | RenderTick: {_renderTickCount} | Canvas: {GameModel.CanvasWidth}x{GameModel.CanvasHeight}",
-                             font, Brushes.Yellow, 20, 20);
-
-            DrawEndOverlay(g);
-
-            // Сбрасываем трансформацию (чтобы кнопки не сдвинулись)
-            g.ResetTransform();
-
-            // Командные тики (1 тик = 1 команда), в экранных координатах.
-        }
-
-        private static void DrawGrid(Graphics g)
-        {
-            using (var pen = new Pen(Color.FromArgb(35, 255, 255, 255), 1))
-            using (var axisPen = new Pen(Color.FromArgb(90, 255, 255, 255), 2))
-            {
-                // Vertical lines
-                for (int x = 0; x <= GameModel.CanvasWidth; x += Grid.CellSizePx)
-                {
-                    g.DrawLine(pen, x, 0, x, GameModel.CanvasHeight);
-                }
-
-                // Horizontal lines
-                for (int y = 0; y <= GameModel.CanvasHeight; y += Grid.CellSizePx)
-                {
-                    g.DrawLine(pen, 0, y, GameModel.CanvasWidth, y);
-                }
-
-                // Ground line highlight
-                g.DrawLine(axisPen, 0, GameModel.GroundY, GameModel.CanvasWidth, GameModel.GroundY);
-            }
-        }
-
-        private void DrawObstacles(Graphics g)
-        {
-            foreach (var obstacle in _model.Obstacles)
-            {
-                Brush brush = Brushes.OrangeRed;
-                if (obstacle.Kind == ObstacleKind.MovingPlatform || obstacle.Kind == ObstacleKind.StaticPlatform)
-                    brush = Brushes.SteelBlue;
-
-                var r = obstacle.Bounds;
-                g.FillRectangle(brush, r.X, r.Y, r.Width, r.Height);
-            }
-        }
-
-        private void DrawFinish(Graphics g)
-        {
-            if (!_model.FinishZone.HasValue)
-                return;
-
-            var r = _model.FinishZone.Value;
-            using (var fill = new SolidBrush(Color.FromArgb(90, 120, 200, 255)))
-                g.FillRectangle(fill, r);
-            using (var pen = new Pen(Color.FromArgb(220, 120, 200, 255), 3))
-                g.DrawRectangle(pen, r);
-            using (var font = new Font("Arial", 10, FontStyle.Bold))
-                g.DrawString("EXIT", font, Brushes.White, r.X - 8, r.Y - 18);
-        }
-
-        private static void DrawPlayer(Graphics g, Player player)
-        {
-            g.FillRectangle(Brushes.LimeGreen,
-                player.Position.X,
-                player.Position.Y,
-                player.Width,
-                player.Height);
-        }
-
-        private void DrawEndOverlay(Graphics g)
-        {
-            if (_model.EndState == GameEndState.Running)
-                return;
-
-            using (var font = new Font("Arial", 18, FontStyle.Bold))
-            {
-                var text = _model.EndState == GameEndState.Won ? "YOU WIN" : "GAME OVER";
-                var brush = _model.EndState == GameEndState.Won ? Brushes.LawnGreen : Brushes.Red;
-                g.DrawString(text, font, brush, 20, 50);
-            }
-
-            if (!string.IsNullOrWhiteSpace(_model.EndReason))
-            {
-                using (var font = new Font("Consolas", 10))
-                    g.DrawString(_model.EndReason, font, Brushes.White, 20, 80);
-            }
+            _renderer.Render(
+                e.Graphics,
+                _model,
+                _controller,
+                renderTickCount: _renderTickCount,
+                panelSize: _gamePanel.ClientSize);
         }
     }
 }
