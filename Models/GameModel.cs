@@ -246,6 +246,57 @@ namespace CodeYourself.Models
             return new Rectangle(Player.Position.X, Player.Position.Y, Player.Width, Player.Height);
         }
 
+        public void SnapPlayerToCellCenter()
+        {
+            if (_grounded && _groundedPlatform is MovingPlatformObstacle mp)
+                SnapPlayerXToPlatformGrid(mp);
+            else
+                SnapPlayerXToCellCenter();
+        }
+
+        private void SnapPlayerXToPlatformGrid(MovingPlatformObstacle platform)
+        {
+            var targetX = platform.SnapPlayerXToOwnGrid(Player.Position.X, PlayerCellCenterOffsetXPx);
+            targetX = Math.Max(0, Math.Min(CanvasWidth - Player.Width, targetX));
+
+            if (targetX == Player.Position.X)
+                return;
+
+            var prevX = Player.Position.X;
+            Player.SetPosition(targetX, Player.Position.Y);
+
+            var dxFixed = (long)(targetX - prevX) * FixedScale;
+            ResolveSolidCollisionsX(dxFixed);
+            SyncFixedFromPlayerX();
+        }
+
+        private void SnapPlayerXToCellCenter()
+        {
+            var cell = Grid.CellSizePx;
+            var offset = PlayerCellCenterOffsetXPx;
+
+            // Позицию привязываем так, чтобы игрок оставался "по центру" клетки относительно сетки:
+            // x = cellIndex * CellSize + offset.
+            var rel = Player.Position.X - offset;
+            int cellIndex = rel >= 0
+                ? (rel + (cell / 2)) / cell
+                : -(((-rel) + (cell / 2)) / cell);
+
+            var targetX = (cellIndex * cell) + offset;
+            targetX = Math.Max(0, Math.Min(CanvasWidth - Player.Width, targetX));
+
+            if (targetX == Player.Position.X)
+                return;
+
+            var prevX = Player.Position.X;
+            Player.SetPosition(targetX, Player.Position.Y);
+
+            // После "подтягивания" можем слегка въехать в платформы/стены — корректируем коллизии.
+            var dxFixed = (long)(targetX - prevX) * FixedScale;
+            ResolveSolidCollisionsX(dxFixed);
+            SyncFixedFromPlayerX();
+        }
+
         private static Rectangle Union(Rectangle a, Rectangle b)
         {
             var left = Math.Min(a.Left, b.Left);

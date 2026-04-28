@@ -138,7 +138,7 @@ namespace CodeYourself
                 BackColor = Color.FromArgb(20, 20, 20),
                 ForeColor = Color.LightGreen,
                 Font = new Font("Consolas", 11),
-                Text = "REPEAT 2\r\n  MOVE RIGHT 2\r\n  JUMP RIGHT\r\n  WAIT 1\r\nEND\r\n",
+                Text = "WAIT 9\r\nJUMP RIGHT\r\nMOVE RIGHT\r\nWAIT 7\r\nJUMP RIGHT\r\nMOVE RIGHT 3\r\nJUMP RIGHT\r\n",
                 ReadOnly = false,
                 AcceptsTab = true,
                 ScrollBars = ScrollBars.Vertical
