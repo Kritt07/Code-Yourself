@@ -53,18 +53,17 @@ namespace CodeYourself.Parsing
         private class JumpNode : Node
         {
             private readonly MoveDirection _direction;
-            private readonly int _count;
+            private readonly int _cells;
 
-            public JumpNode(int lineIndex, MoveDirection direction, int count) : base(lineIndex)
+            public JumpNode(int lineIndex, MoveDirection direction, int cells) : base(lineIndex)
             {
                 _direction = direction;
-                _count = count;
+                _cells = cells;
             }
 
             public override void Emit(List<GameCommand> output)
             {
-                for (int k = 0; k < _count; k++)
-                    output.Add(new JumpCommand(LineIndex, _direction));
+                output.Add(new JumpCommand(LineIndex, _direction, _cells));
             }
         }
 
@@ -226,13 +225,31 @@ namespace CodeYourself.Parsing
                     if (!TryParseDirection(tokens[1], index, errors, "JUMP", out var dir))
                         continue;
 
-                    if (tokens.Length > 2)
+                    if (tokens.Length < 3)
                     {
-                        errors.Add(new ParseError(index, "JUMP does not take a count. Use: JUMP LEFT|RIGHT"));
+                        errors.Add(new ParseError(index, "JUMP requires distance in cells: JUMP LEFT|RIGHT n (n=1..3)"));
                         continue;
                     }
 
-                    nodes.Add(new JumpNode(index, dir, count: 1));
+                    if (tokens.Length > 3)
+                    {
+                        errors.Add(new ParseError(index, "Too many tokens for JUMP. Use: JUMP LEFT|RIGHT n (n=1..3)"));
+                        continue;
+                    }
+
+                    if (!int.TryParse(tokens[2], out var cells))
+                    {
+                        errors.Add(new ParseError(index, $"Invalid count: '{tokens[2]}'. Expected integer 1..3."));
+                        continue;
+                    }
+
+                    if (cells < 1 || cells > 3)
+                    {
+                        errors.Add(new ParseError(index, $"Invalid jump distance: {cells}. Expected 1..3 cells."));
+                        continue;
+                    }
+
+                    nodes.Add(new JumpNode(index, dir, cells: cells));
                     continue;
                 }
 

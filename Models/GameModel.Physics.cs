@@ -59,12 +59,12 @@ namespace CodeYourself.Models
             _moveStepRemainder = total % ticks;
         }
 
-        private void StartJump(MoveDirection direction, int durationSimTicks)
+        private void StartJump(MoveDirection direction, int durationSimTicks, int distancePerCommandTickPx)
         {
             // Прыгать можно только стоя на земле/платформе.
             if (!_grounded)
             {
-                StartMove(direction, durationSimTicks, JumpDistancePerCommandTickPx);
+                StartMove(direction, durationSimTicks, distancePerCommandTickPx);
                 return;
             }
 
@@ -72,7 +72,7 @@ namespace CodeYourself.Models
             _grounded = false;
             _groundedPlatform = null;
 
-            StartMove(direction, durationSimTicks, JumpDistancePerCommandTickPx);
+            StartMove(direction, durationSimTicks, distancePerCommandTickPx);
         }
 
         private void IntegrateAndResolvePlayer()

@@ -129,6 +129,11 @@ namespace CodeYourself.Controllers
 
             _model.StepSimulationTick();
             _remainingSimulationTicksForCommand--;
+
+            // После каждой команды "подтягиваем" игрока к центру клетки.
+            if (_remainingSimulationTicksForCommand == 0 && _model.EndState == GameEndState.Running)
+                _model.SnapPlayerToCellCenter();
+
             LogicFrameCommitted?.Invoke();
 
             // Если состояние завершилось на этом сим-тыке — останавливаемся и делаем финальную отрисовку.

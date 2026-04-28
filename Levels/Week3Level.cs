@@ -83,20 +83,6 @@ namespace CodeYourself.Levels
                 y: finishPlatformTop - finishHeight,
                 width: finishWidth,
                 height: finishHeight));
-
-            // Шипы на движущейся платформе (слева): "приклеены" к ней по X.
-            var movingSpikesWidthCells = 1;
-            var movingSpikesWidthPx = (movingSpikesWidthCells * Grid.CellSizePx) - spikesInset - spikesInset;
-            var movingPlatformWidthPx = movingPlatformWidthCells * Grid.CellSizePx;
-            var movingSpikesCenterOffsetX = (movingPlatformWidthPx - movingSpikesWidthPx) / 2;
-            model.AddObstacle(new MovingSpikesObstacle(
-                minX: PxX(movingPlatformMinX),
-                maxX: PxX(movingPlatformMaxX),
-                y: PlatformTopYFromCellBottom(movingPlatformCellY, movingPlatformHeightPx) - 18,
-                width: movingSpikesWidthPx,
-                height: 18,
-                stepPerTick: movingPlatformStepPerTick,
-                xOffset: movingSpikesCenterOffsetX));
         }
     }
 }
