@@ -34,30 +34,43 @@ namespace CodeYourself.Tests.Parsing
         }
 
         [TestMethod]
-        public void JumpRight_WithCount_ReturnsError()
+        public void JumpRight_WithCount_ParsesToSingleCommand()
         {
             var parser = new CommandParser();
             var result = parser.Parse("JUMP RIGHT 3");
-            var errors = result.Errors.ToList();
-
-            Assert.IsFalse(result.IsSuccess);
-            Assert.AreEqual(0, result.Commands.Count());
-            Assert.AreEqual(1, errors.Count);
-            Assert.AreEqual(0, errors[0].LineIndex);
-            StringAssert.Contains(errors[0].Message, "does not take");
-        }
-
-        [TestMethod]
-        public void JumpRight_WithoutCount_ParsesToSingleCommand()
-        {
-            var parser = new CommandParser();
-            var result = parser.Parse("JUMP RIGHT");
             var commands = result.Commands.ToList();
 
             Assert.IsTrue(result.IsSuccess);
             Assert.AreEqual(1, commands.Count);
             Assert.IsTrue(commands[0] is JumpCommand);
             Assert.AreEqual(0, commands[0].LineIndex);
+        }
+
+        [TestMethod]
+        public void JumpRight_WithoutCount_ReturnsError()
+        {
+            var parser = new CommandParser();
+            var result = parser.Parse("JUMP RIGHT");
+            var errors = result.Errors.ToList();
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.AreEqual(0, result.Commands.Count());
+            Assert.AreEqual(1, errors.Count);
+            Assert.AreEqual(0, errors[0].LineIndex);
+            StringAssert.Contains(errors[0].Message, "requires distance");
+        }
+
+        [TestMethod]
+        public void JumpRight_InvalidCount_OutOfRange_ReturnsError()
+        {
+            var parser = new CommandParser();
+            var result = parser.Parse("JUMP RIGHT 4");
+            var errors = result.Errors.ToList();
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.AreEqual(0, result.Commands.Count());
+            Assert.AreEqual(1, errors.Count);
+            StringAssert.Contains(errors[0].Message, "1..3");
         }
 
         [TestMethod]

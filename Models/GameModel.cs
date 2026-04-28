@@ -229,7 +229,15 @@ namespace CodeYourself.Models
 
         public void JumpPlayer(MoveDirection direction, int durationSimTicks = DefaultCommandDurationSimTicks)
         {
-            StartJump(direction, durationSimTicks);
+            JumpPlayer(direction, cells: 2, durationSimTicks: durationSimTicks);
+        }
+
+        public void JumpPlayer(MoveDirection direction, int cells, int durationSimTicks = DefaultCommandDurationSimTicks)
+        {
+            if (cells < 1 || cells > 3)
+                throw new ArgumentOutOfRangeException(nameof(cells), "Jump cells must be in range 1..3.");
+
+            StartJump(direction, durationSimTicks, distancePerCommandTickPx: cells * Grid.CellSizePx);
         }
 
         public void SetPlayerPosition(int x, int y)
