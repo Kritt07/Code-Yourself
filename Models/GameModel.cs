@@ -21,9 +21,8 @@ namespace CodeYourself.Models
 
     public partial class GameModel
     {
-        // Для hazards (пила/шипы) делаем более точную проверку, чем Union(prev,curr):
-        // семплируем траекторию внутри sim-tick, чтобы избежать ложных коллизий при диагональном движении.
-        private const int HazardCollisionSubsteps = 8;
+        // Для hazards (пила/шипы) используем swept-collision через Union(prev,curr),
+        // чтобы не пропускать столкновения при быстром движении.
 
         public const int CanvasWidth = 800;
         public const int CanvasHeight = 400;
@@ -166,7 +165,7 @@ namespace CodeYourself.Models
             var currPlayer = GetPlayerBounds();
 
             // 3) Пилы/шипы — смертельные. Проверяем движение внутри тика подшагами (детерминированно),
-            // чтобы корректно "перепрыгивать" hazards по дуге.
+            // чтобы не было «проскока» через hazard за один sim-tick.
             foreach (var obstacle in _obstacles)
             {
                 if (obstacle.Kind != ObstacleKind.Saw && obstacle.Kind != ObstacleKind.Spikes)
@@ -201,20 +200,21 @@ namespace CodeYourself.Models
                     return Rectangle.FromLTRB(left, top, right, bottom);
                 }
 
-                for (int i = 0; i <= HazardCollisionSubsteps; i++)
+                // Swept collision: объединяем прямоугольники prev/curr.
+                // Для Spikes сначала уменьшаем хитбокс и только потом делаем Union.
+                if (obstacle.Kind == ObstacleKind.Spikes)
                 {
-                    var playerAt = LerpRect(prevPlayer, currPlayer, i, HazardCollisionSubsteps);
-                    var obsAt = LerpRect(prevObs, currObs, i, HazardCollisionSubsteps);
+                    prevObs = ShrinkSpikesHitbox(prevObs);
+                    currObs = ShrinkSpikesHitbox(currObs);
+                }
 
-                    if (obstacle.Kind == ObstacleKind.Spikes)
-                        obsAt = ShrinkSpikesHitbox(obsAt);
+                var sweptPlayer = Union(prevPlayer, currPlayer);
+                var sweptObs = Union(prevObs, currObs);
 
-                    if (playerAt.IntersectsWith(obsAt))
-                    {
-                        EndState = GameEndState.Lost;
-                        EndReason = $"Collision with {obstacle.Kind}";
-                        break;
-                    }
+                if (sweptPlayer.IntersectsWith(sweptObs))
+                {
+                    EndState = GameEndState.Lost;
+                    EndReason = $"Collision with {obstacle.Kind}";
                 }
 
                 if (EndState != GameEndState.Running)
