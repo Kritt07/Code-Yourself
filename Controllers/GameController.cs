@@ -23,13 +23,42 @@ namespace CodeYourself.Controllers
         private int _remainingSimulationTicksForCommand;
         private int _commandTickCount;
 
+        private bool _simulationPaused;
+        private bool _wasRunningBeforePause;
+
         public event Action GameUpdated; // событие для перерисовки
         public event Action LogicFrameCommitted; // логический кадр готов (для 60Hz рендера)
         public event Action<int> CurrentLineIndexChanged;
 
         public int CurrentLineIndex { get; private set; } = -1;
         public bool IsRunning => _commandTimer.Enabled;
+        public bool IsSimulationPaused => _simulationPaused;
         public int CommandTickCount => _commandTickCount;
+
+        /// <summary>
+        /// Останавливает таймер симуляции без очистки очереди команд (меню паузы).
+        /// </summary>
+        public void PauseSimulation()
+        {
+            _wasRunningBeforePause = _commandTimer.Enabled;
+            _simulationPaused = true;
+            _commandTimer.Stop();
+        }
+
+        /// <summary>
+        /// Возобновляет симуляцию после <see cref="PauseSimulation"/>; не трогает очередь.
+        /// </summary>
+        public void ResumeSimulation()
+        {
+            _simulationPaused = false;
+            if (_wasRunningBeforePause && _model.EndState == GameEndState.Running)
+            {
+                _lastElapsedMs = _stopwatch.ElapsedMilliseconds;
+                _commandTimer.Start();
+            }
+
+            _wasRunningBeforePause = false;
+        }
 
         public GameController(GameModel model)
         {
@@ -59,6 +88,8 @@ namespace CodeYourself.Controllers
         {
             _commandTimer.Stop();
 
+            _simulationPaused = false;
+            _wasRunningBeforePause = false;
             _remainingSimulationTicksForCommand = 0;
             SetCurrentLineIndex(-1);
             _stopwatch.Stop();
@@ -78,7 +109,7 @@ namespace CodeYourself.Controllers
 
         private void CommandTimer_Tick(object sender, EventArgs e)
         {
-            if (!_stopwatch.IsRunning)
+            if (_simulationPaused || !_stopwatch.IsRunning)
                 return;
 
             // 0) Аккумулируем реальное время.

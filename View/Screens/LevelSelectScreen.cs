@@ -61,16 +61,20 @@ namespace CodeYourself.View.Screens
             };
             root.Controls.Add(grid, 0, 2);
 
-            // Пока показываем только 1 уровень.
-            var level1 = new NeonButton(_theme)
+            for (int i = 0; i < LevelCatalog.All.Count; i++)
             {
-                Text = "УРОВЕНЬ 1",
-                Width = 220,
-                Height = 54,
-                Margin = new Padding(0, 0, 14, 14)
-            };
-            level1.Click += (_, __) => LevelSelected?.Invoke(this, new Week3Level());
-            grid.Controls.Add(level1);
+                var level = LevelCatalog.All[i];
+                var idx = i + 1;
+                var btn = new NeonButton(_theme)
+                {
+                    Text = $"УРОВЕНЬ {idx}",
+                    Width = 220,
+                    Height = 54,
+                    Margin = new Padding(0, 0, 14, 14)
+                };
+                btn.Click += (_, __) => LevelSelected?.Invoke(this, level);
+                grid.Controls.Add(btn);
+            }
 
             var back = new NeonButton(_theme)
             {

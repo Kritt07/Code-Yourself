@@ -76,6 +76,8 @@ namespace CodeYourself.View
             var model = new GameModel();
             var controller = new GameController(model);
             _gameScreen = new GameScreen(_theme, model, controller, level, setWindowTitle: t => Text = t);
+            _gameScreen.MainMenuRequested += (_, __) => ShowMainMenu();
+            _gameScreen.NextLevelRequested += (_, nextLevel) => StartLevel(nextLevel);
 
             SetScreen(_gameScreen);
         }

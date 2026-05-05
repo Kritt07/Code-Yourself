@@ -78,8 +78,6 @@ namespace CodeYourself.View.Rendering
                         Theme.TextAccentBrush,
                         20,
                         20);
-
-                DrawEndOverlay(g, model);
             }
             finally
             {
@@ -275,25 +273,6 @@ namespace CodeYourself.View.Rendering
             {
                 g.DrawLine(pen, r.Left + 2, r.Top + 2, r.Right - 3, r.Top + 2);
                 g.DrawLine(pen, r.Left + 2, r.Top + 2, r.Left + 2, r.Bottom - 3);
-            }
-        }
-
-        private static void DrawEndOverlay(Graphics g, GameModel model)
-        {
-            if (model.EndState == GameEndState.Running)
-                return;
-
-            using (var font = new Font("Arial", 18, FontStyle.Bold))
-            {
-                var text = model.EndState == GameEndState.Won ? "YOU WIN" : "GAME OVER";
-                var brush = model.EndState == GameEndState.Won ? Brushes.LawnGreen : Brushes.Red;
-                g.DrawString(text, font, brush, 20, 50);
-            }
-
-            if (!string.IsNullOrWhiteSpace(model.EndReason))
-            {
-                using (var font = new Font("Consolas", 10))
-                    g.DrawString(model.EndReason, font, Brushes.White, 20, 80);
             }
         }
 
