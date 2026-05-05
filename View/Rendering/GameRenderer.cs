@@ -7,13 +7,22 @@ using CodeYourself.Models.Obstacles;
 
 namespace CodeYourself.View.Rendering
 {
-    public sealed class GameRenderer
+    public sealed class GameRenderer : IDisposable
     {
+        private readonly bool _ownsTheme;
+
         public NeonTheme Theme { get; }
 
         public GameRenderer()
         {
             Theme = new NeonTheme();
+            _ownsTheme = true;
+        }
+
+        public GameRenderer(NeonTheme theme)
+        {
+            Theme = theme ?? throw new ArgumentNullException(nameof(theme));
+            _ownsTheme = false;
         }
 
         public void Render(Graphics g, GameModel model, GameController controller, long renderTickCount, Size panelSize)
@@ -286,6 +295,12 @@ namespace CodeYourself.View.Rendering
                 using (var font = new Font("Consolas", 10))
                     g.DrawString(model.EndReason, font, Brushes.White, 20, 80);
             }
+        }
+
+        public void Dispose()
+        {
+            if (_ownsTheme)
+                Theme?.Dispose();
         }
     }
 }

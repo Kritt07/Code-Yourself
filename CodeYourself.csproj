@@ -65,12 +65,13 @@
     <Compile Include="Models\Obstacles\SawObstacle.cs" />
     <Compile Include="Parsing\CommandParser.cs" />
     <Compile Include="Parsing\ParseError.cs" />
-    <Compile Include="View\GameForm.cs">
+    <Compile Include="View\Controls\NeonButton.cs" />
+    <Compile Include="View\AppForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="View\GameForm.Designer.cs">
-      <DependentUpon>GameForm.cs</DependentUpon>
-    </Compile>
+    <Compile Include="View\Screens\MainMenuScreen.cs" />
+    <Compile Include="View\Screens\LevelSelectScreen.cs" />
+    <Compile Include="View\Screens\GameScreen.cs" />
     <Compile Include="View\Rendering\GameRenderer.cs" />
     <Compile Include="View\Rendering\NeonTheme.cs" />
     <Compile Include="Models\GameModel.cs" />
