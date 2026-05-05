@@ -71,15 +71,14 @@ namespace CodeYourself.View
         {
             if (level == null) throw new ArgumentNullException(nameof(level));
 
-            DisposeGameScreen();
-
             var model = new GameModel();
             var controller = new GameController(model);
-            _gameScreen = new GameScreen(_theme, model, controller, level, setWindowTitle: t => Text = t);
-            _gameScreen.MainMenuRequested += (_, __) => ShowMainMenu();
-            _gameScreen.NextLevelRequested += (_, nextLevel) => StartLevel(nextLevel);
+            var nextScreen = new GameScreen(_theme, model, controller, level, setWindowTitle: t => Text = t);
+            nextScreen.MainMenuRequested += (_, __) => ShowMainMenu();
+            nextScreen.NextLevelRequested += (_, nextLevel) => StartLevel(nextLevel);
 
-            SetScreen(_gameScreen);
+            SetScreen(nextScreen);
+            _gameScreen = nextScreen;
         }
 
         private void SetScreen(Control screen)
@@ -89,7 +88,7 @@ namespace CodeYourself.View
             if (ReferenceEquals(_currentScreen, screen))
                 return;
 
-            DisposeCurrentScreenIfTransient();
+            DisposeCurrentScreenIfTransient(incoming: screen);
 
             _screenHost.Controls.Clear();
             _currentScreen = screen;
@@ -98,15 +97,15 @@ namespace CodeYourself.View
             screen.BringToFront();
         }
 
-        private void DisposeCurrentScreenIfTransient()
+        private void DisposeCurrentScreenIfTransient(Control incoming)
         {
             if (_currentScreen == null)
                 return;
 
             // Меню и выбор уровня переиспользуются. Игровой экран пересоздаётся на старт уровня.
-            if (_currentScreen is GameScreen)
+            if (_currentScreen is GameScreen gs && !ReferenceEquals(gs, incoming))
             {
-                DisposeGameScreen();
+                DisposeGameScreen(gs);
             }
         }
 
@@ -119,14 +118,24 @@ namespace CodeYourself.View
 
         private void DisposeGameScreen()
         {
-            if (_gameScreen == null)
+            DisposeGameScreen(_gameScreen);
+        }
+
+        private void DisposeGameScreen(GameScreen screen)
+        {
+            if (screen == null)
                 return;
 
-            if (_screenHost.Controls.Contains(_gameScreen))
-                _screenHost.Controls.Remove(_gameScreen);
+            if (_screenHost.Controls.Contains(screen))
+                _screenHost.Controls.Remove(screen);
 
-            _gameScreen.Dispose();
-            _gameScreen = null;
+            if (ReferenceEquals(_currentScreen, screen))
+                _currentScreen = null;
+
+            if (ReferenceEquals(_gameScreen, screen))
+                _gameScreen = null;
+
+            screen.Dispose();
         }
     }
 }

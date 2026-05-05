@@ -10,6 +10,11 @@ namespace CodeYourself.Levels
     {
         private static readonly IGameLevel[] Ordered =
         {
+            new TutorialMoveLevel(),
+            new TutorialJumpLevel(),
+            new TutorialWaitLevel(),
+            new TutorialRepeatLevel(),
+            new TutorialTimingLevel(),
             new Week3Level(),
         };
 
@@ -22,7 +27,9 @@ namespace CodeYourself.Levels
             int index = -1;
             for (int i = 0; i < Ordered.Length; i++)
             {
-                if (Ordered[i].GetType() == current.GetType())
+                if (ReferenceEquals(Ordered[i], current)
+                    || Ordered[i].GetType() == current.GetType()
+                    || string.Equals(Ordered[i].Name, current.Name, StringComparison.Ordinal))
                 {
                     index = i;
                     break;

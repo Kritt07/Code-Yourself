@@ -200,7 +200,7 @@ namespace CodeYourself.View.Screens
                 BackColor = _theme.EditorBackground,
                 ForeColor = _theme.EditorForeground,
                 Font = new Font("Consolas", 11),
-                Text = "WAIT 9\r\nJUMP RIGHT 1\r\nMOVE RIGHT 2\r\nWAIT 6\r\nJUMP RIGHT 2\r\nMOVE RIGHT 3\r\nJUMP RIGHT 2\r\n",
+                Text = "",
                 ReadOnly = false,
                 AcceptsTab = true,
                 ScrollBars = ScrollBars.Vertical

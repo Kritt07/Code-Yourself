@@ -53,6 +53,11 @@
     <Compile Include="Controllers\GameController.cs" />
     <Compile Include="Levels\IGameLevel.cs" />
     <Compile Include="Levels\NeonSpikesTestLevel.cs" />
+    <Compile Include="Levels\TutorialJumpLevel.cs" />
+    <Compile Include="Levels\TutorialMoveLevel.cs" />
+    <Compile Include="Levels\TutorialRepeatLevel.cs" />
+    <Compile Include="Levels\TutorialTimingLevel.cs" />
+    <Compile Include="Levels\TutorialWaitLevel.cs" />
     <Compile Include="Levels\Week3Level.cs" />
     <Compile Include="Levels\LevelCatalog.cs" />
     <Compile Include="Models\Grid.cs" />
